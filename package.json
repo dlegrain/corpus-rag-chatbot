@@ -1,0 +1,47 @@
+{
+  "name": "corpus-rag-chatbot",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Chatbot RAG sur un corpus de PDF, extensible par glisser-déposer (Supabase pgvector + Gemini embeddings + Claude), déployé sur Netlify.",
+  "author": "Diederick Legrain — AI Shift (https://ai-shift.be)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dlegrain/corpus-rag-chatbot.git"
+  },
+  "keywords": [
+    "rag",
+    "chatbot",
+    "pgvector",
+    "supabase",
+    "netlify",
+    "claude",
+    "pdf"
+  ],
+  "scripts": {
+    "dev": "netlify dev",
+    "vite": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "seed": "node scripts/seed-pdfs.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.120.0",
+    "@supabase/supabase-js": "^2.112.4",
+    "pdfjs-dist": "^6.2.108",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@netlify/functions": "^6.0.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2"
+  }
+}

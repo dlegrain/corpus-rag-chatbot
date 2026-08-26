@@ -1,0 +1,15 @@
+node_modules
+dist
+.netlify
+.playwright-mcp
+.env
+.env.*
+!.env.example
+.DS_Store
+
+# Corpus source : non versionné (droits des éditeurs).
+# Voir « Constituer son corpus » dans le README.
+pdfs/
+
+# Fichiers temporaires du CLI Supabase
+supabase/.temp/
