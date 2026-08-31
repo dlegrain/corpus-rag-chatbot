@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import type { Source } from '../lib/types'
 
-export default function Sources({ sources, cited }: { sources: Source[]; cited: Set<number> }) {
+type Props = { sources: Source[]; cited: Set<number>; anchor: string }
+
+export default function Sources({ sources, cited, anchor }: Props) {
   const [openAll, setOpenAll] = useState(false)
   const used = sources.filter((s) => cited.has(s.n))
   const shown = openAll ? sources : used.length > 0 ? used : sources.slice(0, 3)
@@ -26,7 +28,7 @@ export default function Sources({ sources, cited }: { sources: Source[]; cited: 
         {shown.map((s) => (
           <li
             key={s.n}
-            id={`src-${s.n}`}
+            id={`${anchor}-${s.n}`}
             className="group flex gap-2.5 rounded-lg px-2 py-1.5 transition target:bg-accent-soft hover:bg-paper"
           >
             <span className="mt-px shrink-0 rounded-[5px] bg-paper px-1.5 py-0.5 font-mono text-[0.66rem] font-medium text-ink-soft">

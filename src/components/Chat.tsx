@@ -32,6 +32,7 @@ export default function Chat({ chat, docs, scopedDoc }: Props) {
                 <Message
                   key={i}
                   msg={m}
+                  index={i}
                   streaming={chat.busy && i === chat.messages.length - 1}
                 />
               ))}

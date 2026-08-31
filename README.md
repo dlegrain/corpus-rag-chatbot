@@ -263,12 +263,40 @@ $$;
 La jointure ramène les métadonnées **dans le même aller-retour** : une seule requête suffit pour
 construire à la fois le contexte du modèle et la liste de sources affichée.
 
+### Le rappel des passages déjà cités
+
+```sql
+create or replace function public.sci_chunks_by_ids(
+  ids             bigint[],
+  query_embedding vector(768)                  -- pour scorer, pas pour chercher
+)
+returns table (id bigint, document_id uuid, content text, page int,
+               similarity float, title text, authors text, year int,
+               journal text, filename text)
+language sql stable
+set search_path = public
+as $$
+  select c.id, c.document_id, c.content, c.page,
+         1 - (c.embedding <=> query_embedding) as similarity,
+         d.title, d.authors, d.year, d.journal, d.filename
+  from public.sci_chunks c
+  join public.sci_documents d on d.id = c.document_id
+  where c.id = any(ids);
+$$;
+```
+
+Même forme de retour que la précédente, mais on récupère des passages **connus** au lieu d'en
+chercher de nouveaux. L'embedding sert uniquement à leur attribuer une similarité avec la question
+courante, ce qui permet d'écarter ceux qui ne sont plus pertinents (voir « La conversation »).
+
 ### Sécurité : RLS activée, zéro policy
 
 ```sql
 alter table public.sci_documents enable row level security;
 alter table public.sci_chunks    enable row level security;
 revoke all on function public.match_sci_chunks(vector, int, uuid) from anon, authenticated;
+revoke all on function public.sci_chunks_by_ids(bigint[], vector) from anon, authenticated;
+grant  execute on function public.sci_chunks_by_ids(bigint[], vector) to service_role;
 ```
 
 RLS active **sans aucune policy** = la clé anon ne peut rien lire. Tout passe par les functions
@@ -329,6 +357,10 @@ Les sauts de ligne sont reconstruits à partir de la position verticale de chaqu
 > **Piège pdf.js v6** : `doc.destroy()` n'existe plus. Il faut conserver le `loadingTask` et
 > appeler `task.destroy()`.
 
+**Ce que cette étape ne sait pas faire.** `getTextContent()` ne rend que des caractères : les
+figures n'existent pas pour elle, et les tableaux perdent leur structure. C'est la limite la plus
+sérieuse du système — détaillée dans « Limites connues », et le chantier n°2 de la feuille de route.
+
 ### 2. Découpage — `shared/chunk.js`
 
 | Paramètre | Valeur | Rôle |
@@ -370,17 +402,26 @@ POST /api/ingest  { op: "finish", docId }                             → n_chun
 
 ## Le pipeline de réponse en détail
 
-Fichiers : [`netlify/functions/chat.mts`](netlify/functions/chat.mts) et
-[`netlify/lib/prompt.ts`](netlify/lib/prompt.ts).
+Fichiers : [`netlify/functions/chat.mts`](netlify/functions/chat.mts) et les modules de
+[`netlify/lib/`](netlify/lib) — `history`, `catalog`, `plan`, `retrieve`, `prompt`.
 
-1. **Embedding de la question** en `RETRIEVAL_QUERY`.
-2. **`match_sci_chunks`**, `MATCH_COUNT = 14` passages (ou moins si un document est sélectionné).
-3. **Émission immédiate des sources** en SSE — elles s'affichent avant le premier mot généré.
-4. **Prompt système** : les extraits sont numérotés dans des balises
-   `<extrait n="3" source="…" page="8">`, avec des règles explicites — ne rien affirmer hors des
-   extraits, citer `[n]`, reprendre les chiffres à l'identique, distinguer un résultat d'une limite
-   reconnue par les auteurs, dire franchement quand la réponse n'est pas dans le corpus.
-5. **Streaming Claude** (`max_tokens: 4096`, effort `low`), 8 derniers messages d'historique.
+1. **Assainissement de l'historique** (`history.ts`) : les messages vides sont écartés et la
+   fenêtre glissante garantit un `user` en tête — l'API Messages refuse les deux.
+2. **Catalogue** (`catalog.ts`) : la liste des documents indexés, qui sert deux fois.
+3. **Plan de recherche** (`plan.ts`) : un appel court à `claude-haiku-4-5` en sortie structurée,
+   qui rend 0 à 3 requêtes, chacune avec un document cible optionnel. Voir « La conversation ».
+4. **Recherches en parallèle** (`retrieve.ts`) : un embedding `RETRIEVAL_QUERY` et un
+   `match_sci_chunks` par requête, budget réparti (1 requête → 20 passages, 2 → 12, 3 → 9,
+   plafond global 24), **plafond par article** pour qu'un document long ne rafle pas toutes les
+   places, puis fusion en gardant le meilleur score par passage.
+5. **Rappel des passages déjà cités**, filtré par pertinence, puis **numérotation stable**.
+6. **Émission immédiate des sources** en SSE — elles s'affichent avant le premier mot généré.
+7. **Prompt système** (`prompt.ts`) : le catalogue, puis les extraits numérotés dans des balises
+   `<extrait n="3" source="…" page="8">`, séparés en deux sections étiquetées (retrouvés pour la
+   question courante / déjà cités plus haut). Règles explicites — ne rien inventer, citer `[n]`,
+   reprendre les chiffres à l'identique, distinguer un résultat d'une limite reconnue par les
+   auteurs, dire franchement quand la réponse n'est pas dans le corpus.
+8. **Streaming Claude** (`claude-opus-5`, `max_tokens: 4096`, effort `low`).
 
 Le front convertit les `[n]` en liens internes (`Message.tsx`) qui deviennent des pastilles
 cliquables pointant vers l'extrait correspondant. Les extraits affichés sont recadrés par
@@ -390,11 +431,132 @@ caractères, sinon il jette le mot tronqué par le recouvrement.
 Format SSE :
 
 ```
-data: {"type":"sources","sources":[{"n":1,"title":…,"page":8,"similarity":0.71,"excerpt":…}]}
+data: {"type":"plan","queries":[{"q":"barriers pharmacist-led vaccination","doc":null}]}
+data: {"type":"sources","sources":[{"id":812,"n":1,"title":…,"page":8,"similarity":0.71,"excerpt":…}]}
 data: {"type":"delta","text":"L'intégration "}
 data: {"type":"delta","text":"des pharmaciens…"}
 data: {"type":"done"}
 ```
+
+---
+
+## La conversation
+
+Un RAG naïf est mono-tour : il cherche à partir du dernier message, remplace tout son contexte
+documentaire à chaque question, et interdit au modèle de répondre hors des extraits du moment. Le
+symptôme apparaît vers le troisième tour — l'utilisateur passe aux relances courtes (« et chez les
+plus de 65 ans ? »), la recherche n'a plus de quoi s'accrocher, et l'assistant paraît amnésique.
+Il ne l'est pas : l'historique est bien transmis, c'est le contexte documentaire qui a disparu.
+
+Quatre mécanismes y répondent, pour un seul appel de modèle supplémentaire.
+
+**Le plan de recherche** ([`plan.ts`](netlify/lib/plan.ts)). Avant de chercher, un appel court à
+`claude-haiku-4-5` reçoit la conversation et le catalogue, et rend un JSON contraint :
+
+```json
+{ "queries": [ { "q": "freins à la vaccination en pharmacie", "doc": null },
+               { "q": "freins à la vaccination", "doc": "<uuid de l'article visé>" } ] }
+```
+
+Ce seul objet règle quatre choses : la requête devient autoportante ; une comparaison entre deux
+articles produit **une requête par côté**, chacune filtrée sur son document, ce qu'une recherche
+unique ne fait jamais (le vecteur moyen est dominé par un seul des deux) ; « compare à Alden 2022 »
+se résout en identifiant grâce au catalogue ; et `queries: []` signale les tours qui n'appellent
+aucune recherche — « merci », ou une question portant sur les seules métadonnées du corpus. Un
+document sélectionné dans la barre latérale prime toujours sur le plan. En cas d'échec, repli
+silencieux sur la question brute.
+
+**Le rappel conditionnel** ([`retrieve.ts`](netlify/lib/retrieve.ts)). Les passages **réellement
+cités** dans les réponses précédentes sont rechargés et rescorés contre la question courante. Le
+seuil est **relatif** : un passage rappelé moins pertinent que le plus faible des passages frais
+est écarté. Sans ce filtre, on troquerait l'amnésie contre une fixation — le modèle continuerait
+de répondre avec la matière du tour précédent. Avec, un changement de sujet les évince seul.
+
+**La numérotation stable.** Les numéros de citation sont attribués une fois pour toute la
+conversation : `[3]` désigne la même source au sixième tour qu'au premier. Le client renvoie la
+table `id → n` déjà attribuée, le serveur la prolonge. Sans cela, les réponses déjà affichées se
+mettent à pointer ailleurs. Les ancres HTML sont préfixées par l'index du message, une même source
+pouvant être listée sous deux réponses.
+
+**Les règles du prompt.** Le modèle est explicitement autorisé à s'appuyer sur ce qu'il a établi
+plus haut dans l'échange, sans avoir à le re-sourcer. L'interdiction d'inventer, elle, ne bouge pas.
+
+**La diversité des sources.** Un article long a mécaniquement plus de tickets à la loterie du
+top-k, alors que sa longueur ne dit rien de sa pertinence. Sur ce corpus, deux articles hors sujet
+pèsent 45 % des passages, et deux articles n'en ont qu'un ou deux — inatteignables. Sans plafond
+par document, la mesure donnait **8 passages sur 14 issus du même article** et deux tours sur
+treize ne citant qu'une seule source. La recherche sur-échantillonne donc (3× le budget) et
+plafonne par article, en complétant sans plafond s'il ne reste pas assez d'articles pertinents.
+Une requête qui vise explicitement un document en est exemptée, et une requête libre écarte les
+documents qu'une requête ciblée du même plan couvre déjà — sinon les deux côtés d'une comparaison
+se confondent.
+
+---
+
+## Évaluation
+
+Deux outils, tous deux fondés sur de vrais appels — aucun mock.
+
+[`scripts/test-chat.mjs`](scripts/test-chat.mjs) rejoue quatre conversations : relance
+pronominale, changement de sujet, comparaison entre deux articles, six tours d'affilée. Il vérifie
+douze assertions (plan autoportant, éviction des passages devenus hors sujet, deux côtés
+représentés dans une comparaison, aucune erreur d'API, aucun gabarit de consigne recopié) et
+publie un bilan : articles par réponse, concentration maximale sur un article, articles réellement
+cités, secondes par tour.
+
+[`scripts/juge.mjs`](scripts/juge.mjs) compare deux transcriptions **par paires et à l'aveugle** :
+les deux réponses à une même question sont présentées en A/B dans un ordre tiré au sort, et le juge
+ignore quelle version est laquelle. C'est ce qui a permis d'identifier que la diversification seule
+ne suffisait pas — le juge préférait systématiquement la version mobilisant le plus de références
+distinctes, ce qui a conduit à relever le budget de passages.
+
+```bash
+node scripts/test-chat.mjs                       # contre netlify dev
+node scripts/test-chat.mjs 3                     # un seul scénario
+DUMP=avant.json node scripts/test-chat.mjs       # capture les transcriptions
+node scripts/juge.mjs avant.json apres.json      # comparaison à l'aveugle
+```
+
+**Limite assumée de ce dispositif** : treize paires par comparaison, un seul passage par
+configuration. Les verdicts individuels du juge se sont montrés instables d'un passage à l'autre —
+seul l'agrégat et le critère décisif récurrent sont exploitables. Pour trancher des écarts plus
+fins, il faudrait une trentaine de questions et plusieurs passages moyennés.
+
+### Résultats mesurés
+
+Point de départ : le RAG mono-tour d'origine. Point d'arrivée : la version décrite ci-dessus.
+
+| | Avant | Après |
+|---|---|---|
+| Articles mobilisés par réponse (corpus de 12) | 3,2 | **4,1 – 5,1** |
+| Passages issus du même article (sur ~14) | 8,2 | **5,6** en recherche libre |
+| Articles réellement cités | 2,5 | 2,9 |
+| Assertions du banc d'essai | 8 / 11 | **12 / 12** |
+| Juge A/B aveugle | — | **8 – 5** en faveur de la nouvelle version |
+
+Le chemin compte autant que le résultat. Trois passages du juge, dans l'ordre :
+
+1. **Diversification seule, à budget constant → 6–6, match nul.** Le critère décisif du juge était
+   invariablement « mobilise plus de références distinctes ». Plafonner le volume à 16 passages
+   avait payé l'équilibre gagné en largeur perdue. *La diversité répartit les places, elle n'en
+   crée pas.*
+2. **Budget relevé à 20/12/9, plafond global 24 → 8–5.** C'était le vrai levier.
+3. **Ajout de la règle de croisement des articles → 8–5**, articles cités de 2,7 à 2,9. Neutre à
+   légèrement positif.
+
+Deux mesures qui ont orienté le travail plus que n'importe quelle intuition :
+
+- **La distribution des passages par article est très inégale** — 121, 66, 45, 34, 34, 31, 25, 22,
+  20, 18, 2, 1. Les deux plus gros documents sont hors sujet et pèsent 45 % du corpus, tandis que
+  deux articles (2 et 1 passages) sont structurellement inatteignables dans un top-k. C'est ce qui
+  a motivé le plafond par article.
+- **La concentration ne se mesure que sur les tours à recherche libre.** Sur les tours où une
+  requête cible explicitement un article, une concentration élevée est le comportement voulu — le
+  mécanisme même de la comparaison. Mélanger les deux dans une moyenne masque le défaut réel.
+
+> `netlify dev` n'injecte pas dans les fonctions les variables marquées *secret* côté site, et les
+> masque même quand le `.env` local les définit. Utilisez `netlify dev --offline` pour que le
+> `.env` reprenne la main.
 
 ---
 
@@ -416,13 +578,15 @@ Les routes sont déclarées dans chaque function via `export const config = { pa
 ```
 ├── src/                        Front React
 │   ├── components/             Sidebar, Chat, Message, Sources, Composer, BrandCard…
-│   ├── hooks/                  useDocuments (corpus + upload), useChat (SSE)
-│   └── lib/                    pdf.ts (extraction), api.ts (appels), types.ts
+│   ├── hooks/                  useDocuments (corpus + upload), useChat (SSE + mémoire)
+│   └── lib/                    pdf.ts (extraction), api.ts, types.ts, citations.ts
 ├── netlify/
 │   ├── functions/              chat.mts · ingest.mts · documents.mts  → routes /api/*
-│   └── lib/                    embed.ts · supabase.ts · metadata.ts · prompt.ts
+│   └── lib/                    embed · supabase · metadata · history · catalog
+│                               plan (planificateur) · retrieve (recherche) · prompt
 ├── shared/                     chunk.js · meta.js   (navigateur + functions + scripts)
 ├── scripts/seed-pdfs.mjs       Indexation en masse d'un dossier via l'API
+├── scripts/test-chat.mjs       Banc d'essai des conversations multi-tours
 ├── supabase/schema.sql         Tables, index HNSW, fonction de recherche, RLS
 ├── screenshots/                Captures du README
 └── pdfs/                       Corpus source — non versionné
@@ -576,15 +740,40 @@ modification. `mammoth` pour le `.docx`, `xlsx` pour les tableurs.
 
 Ordres de grandeur, hors offre gratuite :
 
+**Indexer est quasi gratuit ; interroger est ce qui coûte.** Le travail lourd de l'ingestion —
+ouvrir et parser le PDF — tourne dans le navigateur de l'utilisateur, sur son processeur.
+
 | Opération | Coût |
 |---|---|
-| Indexer 10 articles (~230 chunks) | quelques centimes — les embeddings Gemini sont marginaux |
-| Une question | ~0,05 $ (≈ 6 000 jetons d'entrée + 800 de sortie sur Claude Opus 5) |
-| Stockage Supabase | négligeable — 232 vecteurs de 768 dims ≈ 700 ko |
+| Parsing du PDF | **zéro** — pdf.js s'exécute dans le navigateur |
+| Embarquer tout le corpus (12 articles, 419 passages) | ~122 000 jetons, soit **moins de deux centimes** |
+| Métadonnées d'un nouveau PDF | négligeable — un appel `gemini-2.5-flash-lite` sur 6 000 caractères |
+| Le plan de recherche | négligeable — quelques centaines de jetons sur Claude Haiku 4.5 |
+| **Une question** | **~0,07 à 0,08 $** — 9 000 à 10 000 jetons d'entrée (24 passages) + ~800 de sortie sur Claude Opus 5 |
+| Stockage Supabase | négligeable — 419 vecteurs de 768 dims ≈ 1,3 Mo |
+
+Le coût par question est proportionnel au **nombre de passages** envoyés, pas à la taille du
+corpus. Il est passé de ~0,05 $ à ~0,08 $ quand le budget est monté de 14 à 24 passages — un
+arbitrage assumé, validé par le juge A/B (voir « Évaluation »).
 
 Pour diviser le coût par question par ~5 : passer à `claude-sonnet-5` dans
 [`chat.mts`](netlify/functions/chat.mts). La qualité de synthèse baisse un peu sur les questions
 qui demandent de croiser plusieurs études.
+
+### Où tourne quoi
+
+| | Région |
+|---|---|
+| Site statique + functions Netlify | **us-east-2** (Ohio) |
+| Base Supabase (textes + vecteurs) | **eu-central-1** (Francfort) |
+| API Gemini et Anthropic | États-Unis |
+
+Deux conséquences. **Les données transitent par les États-Unis** — sans importance pour une
+démonstration publique, première question posée le jour où le système sert un client soumis à des
+contraintes de résidence des données. Et **chaque recherche traverse l'Atlantique deux fois**
+(function dans l'Ohio, base à Francfort), ce qui pèse sur les 16 à 18 secondes par tour mesurées
+par le banc d'essai. Aligner la région des functions sur `eu-central-1` est un réglage Netlify,
+pas un changement de code.
 
 ---
 
@@ -594,10 +783,94 @@ qui demandent de croiser plusieurs études.
   peut ajouter ou supprimer des documents. Voir le profil « corpus interne » ci-dessus.
 - **PDF scannés non gérés.** Sans couche texte, l'extraction renvoie du vide et l'ingestion
   échoue proprement (« Aucun texte extractible »). Il faudrait un OCR en amont.
+- **Graphiques perdus, tableaux fragiles — la limite la plus sérieuse.** `getTextContent()` de
+  pdf.js ne rend que des caractères. Une courbe, un forest plot, un diagramme : invisibles, seule
+  la légende survit. Les tableaux, eux, survivent à moitié : les chiffres sont extraits mais la
+  structure lignes/colonnes disparaît, reconstituée approximativement à partir des positions
+  verticales. Sur un tableau à cellules fusionnées ou dans un article à deux colonnes, **une
+  valeur peut se retrouver rattachée à la mauvaise étiquette**. C'est le défaut le plus dangereux
+  du système parce qu'aucun contrôle en aval ne peut le rattraper : la réponse serait parfaitement
+  fidèle au passage, et le passage serait faux. Trace visible de ce bruit dans le corpus actuel :
+  des `,,,` au milieu de phrases, qui sont des appels de référence en exposant écrasés.
+- **Le développement local attaque la base de production.** Il n'existe pas de base de test : le
+  `.env` pointe sur le Supabase hébergé. Un PDF déposé depuis `localhost:8888` s'indexe pour de
+  bon et apparaît sur le site public ; une suppression y est définitive.
 - **Pas de reranking.** La recherche est purement vectorielle. Au-delà de quelques centaines de
   documents, un reranker ou une recherche hybride (BM25 + vecteur) deviendrait rentable.
+- **Le planificateur varie d'un appel à l'autre.** Une même question peut donner une ou deux
+  requêtes selon le tirage, ce qui fait bouger le nombre d'articles mobilisés. Le banc d'essai le
+  voit (4,1 à 5,1 articles par réponse selon les passages). Réduire cette variance demanderait un
+  jeu de questions plus large et plusieurs passages moyennés — voir « Évaluation ».
+- **Le plan de recherche ajoute un aller-retour** (~400 ms) avant la recherche. Le gain sur les
+  relances et les comparaisons le justifie largement, mais c'est un modèle de plus dans la boucle,
+  donc un point de panne de plus — d'où le repli systématique sur la question brute.
 - **Déduplication par nom de fichier.** Le même article sous deux noms différents entre deux fois.
-- **Déploiement manuel** (`netlify deploy --prod --build`), pas de CI.
+- **Déploiement manuel** (`netlify deploy --prod --build`), pas de CI. Pousser sur GitHub ne
+  déploie rien.
+
+---
+
+## Prochains chantiers
+
+Par ordre de valeur, tels qu'identifiés en testant le système sur de vraies questions.
+
+### 1. Afficher le PDF à l'endroit du passage
+
+Aujourd'hui l'interface n'affiche que **260 caractères** d'un passage qui en compte 1 351 en
+médiane — soit **19 % de la preuve**. Le « déplier » actuel ne va pas chercher plus de texte, il
+lève seulement une troncature d'affichage sur deux lignes. Résultat : un lecteur ne *peut pas*
+vérifier une affirmation ; il faut interroger la base pour le faire.
+
+La cible : un clic ouvre une modale affichant **le PDF d'origine à la bonne page**, scrollable.
+Chaque passage porte déjà son numéro de page en base, et pdf.js est déjà une dépendance du projet.
+Il manque le stockage des PDF — ils ne sont aujourd'hui **pas conservés** : le fichier est lu dans
+le navigateur, le texte extrait, et l'original reste sur le disque de l'utilisateur.
+
+> **À trancher avant de construire** : servir les PDF entiers depuis un site public sans
+> authentification est une posture juridique très différente du stockage d'extraits. C'est
+> précisément pour cela que `pdfs/` est exclu du dépôt. Cela pousse à mettre l'accès derrière une
+> authentification.
+
+Étape intermédiaire à moindre coût si le stockage pose problème : afficher le **passage complet**
+(1 351 caractères) au lieu de l'extrait de 260. Aucune dépendance nouvelle, ~32 ko par réponse.
+
+### 2. Extraction par vision pour les figures et les tableaux
+
+Voir « Limites connues ». Le principe : rendre chaque page en image et la faire transcrire par un
+modèle multimodal, qui restitue les tableaux en markdown structuré et décrit les figures. La
+fidélité devient incomparable ; en contrepartie l'ingestion devient payante à la page, plus lente,
+et doit passer côté serveur — elle tourne aujourd'hui dans le navigateur.
+
+**Mesurer avant de reconstruire** : comparer, sur trois ou quatre tableaux du corpus actuel, ce que
+dit le PDF et ce qu'il y a en base. Une heure de travail qui dira si le problème est théorique ou
+réel, et évitera de refaire toute l'ingestion à l'aveugle.
+
+### 3. Contrôleur de fidélité (hors ligne)
+
+Un script qui découpe une réponse en affirmations, donne à un petit modèle chaque affirmation avec
+le **texte intégral du passage cité**, et demande si elle est réellement soutenue. Il produit un
+rapport, pas un affichage utilisateur.
+
+Motivation, trouvée en testant : le modèle ne fabrique pas, il **resserre**. Deux cas relevés à la
+main sur une même réponse — « CCAT 52–100 % » là où la source dit *« ranging between 60 % and
+100 %, with one study scoring 52 % »* (un cas isolé promu en borne basse), et « critère : région
+EMRO de l'OMS » qui n'apparaît nulle part dans le corpus (connaissance externe présentée comme
+sourcée). Chaque élément pris isolément est traçable ; l'affirmation globale dit un peu plus que la
+source. Le banc d'essai actuel ne voit rien de tout cela — il vérifie la mécanique de récupération,
+jamais la fidélité.
+
+Délibérément **hors ligne** : faire vérifier le modèle avant de répondre doublerait la latence et
+produirait une prose plus timide. Et un contrôleur reste un modèle — il rate des choses et en
+signale à tort ; hors ligne c'est sans conséquence, à l'écran chaque faux positif est une
+accusation infondée affichée à l'utilisateur.
+
+### 4. Reranking
+
+La recherche sur-échantillonne déjà 3× puis trie par simple similarité cosinus. Il manque l'étape
+où un modèle rapide classe les 60 candidats selon leur réponse *réelle* à la question. Constaté sur
+une question portant sur un **effet** en santé publique : environ un tiers des passages retenus
+traitaient effectivement de l'effet, le reste parlait d'obstacles — parce que la similarité
+sémantique s'accroche au thème, pas au type de question.
 
 ---
 

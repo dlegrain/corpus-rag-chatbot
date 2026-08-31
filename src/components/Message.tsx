@@ -1,12 +1,14 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import Sources from './Sources'
+import { citedNumbers, linkCitations } from '../lib/citations'
 import type { Msg } from '../lib/types'
 
-/** Transforme les renvois [1] en liens internes vers la source. */
-const linkCitations = (text: string) => text.replace(/\[(\d{1,2})\]/g, '[$1](#src-$1)')
+type Props = { msg: Msg; streaming: boolean; index: number }
 
-export default function Message({ msg, streaming }: { msg: Msg; streaming: boolean }) {
+export default function Message({ msg, streaming, index }: Props) {
+  const anchor = `src-${index}`
+
   if (msg.role === 'user') {
     return (
       <div className="animate-rise flex justify-end">
@@ -17,9 +19,7 @@ export default function Message({ msg, streaming }: { msg: Msg; streaming: boole
     )
   }
 
-  const cited = new Set(
-    Array.from(msg.content.matchAll(/\[(\d{1,2})\]/g)).map((m) => Number(m[1])),
-  )
+  const cited = citedNumbers(msg.content)
 
   return (
     <div className="animate-rise">
@@ -34,7 +34,7 @@ export default function Message({ msg, streaming }: { msg: Msg; streaming: boole
               remarkPlugins={[remarkGfm]}
               components={{
                 a: ({ href, children }) =>
-                  href?.startsWith('#src-') ? (
+                  href?.startsWith(`#${anchor}-`) ? (
                     <a
                       href={href}
                       className="ml-[0.18em] inline-flex h-[1.15em] min-w-[1.15em] translate-y-[-0.15em] items-center justify-center rounded-[5px] bg-accent-soft px-[0.3em] align-middle font-mono text-[0.68em] font-medium text-accent-ink no-underline transition hover:bg-accent hover:text-white"
@@ -48,7 +48,7 @@ export default function Message({ msg, streaming }: { msg: Msg; streaming: boole
                   ),
               }}
             >
-              {linkCitations(msg.content)}
+              {linkCitations(msg.content, anchor)}
             </ReactMarkdown>
             {streaming && (
               <span className="ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.15em] bg-accent align-middle [animation:pulse-dot_1s_ease-in-out_infinite]" />
@@ -56,7 +56,7 @@ export default function Message({ msg, streaming }: { msg: Msg; streaming: boole
           </div>
 
           {!streaming && msg.sources && msg.sources.length > 0 && (
-            <Sources sources={msg.sources} cited={cited} />
+            <Sources sources={msg.sources} cited={cited} anchor={anchor} />
           )}
         </>
       )}

@@ -12,6 +12,8 @@ export type Doc = {
 }
 
 export type Source = {
+  /** Identifiant du passage en base — sert à le reporter aux tours suivants. */
+  id: number
   n: number
   documentId: string
   title: string
@@ -21,6 +23,8 @@ export type Source = {
   page: number | null
   similarity: number
   excerpt: string
+  /** Rappelé d'un tour précédent plutôt que retrouvé pour cette question. */
+  recalled?: boolean
 }
 
 export type Msg = {

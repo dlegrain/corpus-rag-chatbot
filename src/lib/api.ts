@@ -71,10 +71,14 @@ type ChatEvents = {
   onError: (m: string) => void
 }
 
+/** Ce que la conversation a déjà établi : passages cités, numéros attribués. */
+export type ChatMemory = { cited: number[]; known: Record<string, number> }
+
 /** Consomme le flux SSE de /api/chat. */
 export async function streamChat(
   messages: Msg[],
   docId: string | null,
+  memory: ChatMemory,
   handlers: ChatEvents,
   signal?: AbortSignal,
 ): Promise<void> {
@@ -84,6 +88,8 @@ export async function streamChat(
     body: JSON.stringify({
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
       docId,
+      cited: memory.cited,
+      known: memory.known,
     }),
     signal,
   })
