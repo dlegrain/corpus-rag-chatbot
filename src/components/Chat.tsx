@@ -14,6 +14,18 @@ type Props = {
 export default function Chat({ chat, docs, scopedDoc }: Props) {
   const bottom = useRef<HTMLDivElement>(null)
 
+  /**
+   * Les numéros de citation sont stables sur toute la conversation : le modèle
+   * peut donc citer au 5e tour une source affichée au 1er. On cherche d'abord
+   * dans le message lui-même, puis partout ailleurs — et on rend `null` si la
+   * source n'est affichée nulle part, pour ne pas fabriquer un lien mort.
+   */
+  const ancreDe = (index: number) => (n: number) => {
+    if (chat.messages[index]?.sources?.some((s) => s.n === n)) return `src-${index}-${n}`
+    const ailleurs = chat.messages.findIndex((m) => m.sources?.some((s) => s.n === n))
+    return ailleurs >= 0 ? `src-${ailleurs}-${n}` : null
+  }
+
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [chat.messages.length, chat.busy])
@@ -33,6 +45,7 @@ export default function Chat({ chat, docs, scopedDoc }: Props) {
                   key={i}
                   msg={m}
                   index={i}
+                  ancre={ancreDe(i)}
                   streaming={chat.busy && i === chat.messages.length - 1}
                 />
               ))}

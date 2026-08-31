@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { DOMAINE } from '../../shared/domaine.js'
 import { catalogWithIds, type CatalogEntry } from './catalog.js'
 import type { Turn } from './history.js'
 
@@ -31,11 +32,11 @@ const SCHEMA = {
   additionalProperties: false,
 } as const
 
-const instructions = (docs: CatalogEntry[]) => `Tu prépares les recherches d'un assistant documentaire adossé à un corpus d'articles scientifiques. Tu ne réponds jamais à l'utilisateur : tu rends uniquement un plan de recherche.
+const instructions = (docs: CatalogEntry[]) => `Tu prépares les recherches d'un assistant documentaire adossé à ${DOMAINE.natureDuCorpus}. Tu ne réponds jamais à l'utilisateur : tu rends uniquement un plan de recherche.
 
 # Bibliothèque disponible
 
-identifiant | auteurs (année) — titre · revue
+identifiant | description du document
 ${catalogWithIds(docs)}
 
 # Ce que tu dois produire
@@ -43,24 +44,23 @@ ${catalogWithIds(docs)}
 De 0 à ${MAX_QUERIES} requêtes de recherche sémantique.
 
 - **Chaque requête doit être autoportante.** Le dernier message peut être une relance elliptique (« et chez les plus de 65 ans ? », « pourquoi ? », « développe le point 2 »). Reconstitue le sujet à partir de l'échange : la requête doit rester compréhensible seule, sans la conversation.
-- **Toute mise en regard de deux sources → deux requêtes, jamais une.** C'est impératif, pas une préférence : une requête unique produit un vecteur intermédiaire dominé par un seul des deux côtés, et l'autre article ressort sans aucun passage. Sont concernés « compare A et B », « qu'en dit X ? », « est-ce cohérent avec Y ? », « et dans l'étude de Z ? ». La requête qui vise un article nommé porte son identifiant dans \`doc\` ; celle qui porte le sujet général garde \`doc: null\`.
+- **Toute mise en regard de deux sources → deux requêtes, jamais une.** C'est impératif, pas une préférence : une requête unique produit un vecteur intermédiaire dominé par un seul des deux côtés, et l'autre document ressort sans aucun passage. Sont concernés « compare A et B », « qu'en dit X ? », « est-ce cohérent avec Y ? », « et dans le document Z ? ». La requête qui vise un document nommé porte son identifiant dans \`doc\` ; celle qui porte le sujet général garde \`doc: null\`.
 
   La forme attendue, à instancier — ne recopie jamais ces libellés, ce sont des emplacements à remplir :
 
   \`\`\`
   requête 1 : <le sujet en cours de discussion, en termes techniques>          doc: null
-  requête 2 : <le même sujet>                                                  doc: <identifiant de l'article nommé>
+  requête 2 : <le même sujet>                                                  doc: <identifiant du document nommé>
   \`\`\`
-- **\`doc\` ne vaut un identifiant que si l'utilisateur désigne explicitement un article** (auteur, année, titre). Sinon \`null\`, pour chercher dans tout le corpus.
-- **Reprends le vocabulaire technique tel qu'il figure dans les articles** — ils sont majoritairement en anglais. Une requête en français avec les termes techniques anglais fonctionne bien.
+- **\`doc\` ne vaut un identifiant que si l'utilisateur désigne explicitement un document** (auteur, année, titre, référence). Sinon \`null\`, pour chercher dans tout le corpus.${DOMAINE.langueDocuments ? `\n- **${DOMAINE.langueDocuments}**` : ''}
 
 # Quand rendre une liste vide
 
 \`queries: []\` — aucune recherche — dans deux cas seulement :
-- la question ne porte que sur les **métadonnées** de la bibliothèque, celles qui figurent dans la liste ci-dessus : nombre d'articles, titres, auteurs, années, revues (« combien d'articles ? », « lesquels sont les plus récents ? », « as-tu quelque chose de Smith ? ») ;
+- la question ne porte que sur les **métadonnées** de la bibliothèque, celles qui figurent dans la liste ci-dessus : nombre de documents, titres, auteurs, années, références (« combien de documents ? », « lesquels sont les plus récents ? », « as-tu quelque chose de Smith ? ») ;
 - le tour n'appelle aucune source nouvelle (« merci », « bonjour », « reformule », « résume ce que tu viens de dire »).
 
-Dès que la réponse suppose de savoir ce que les articles **contiennent** — populations, pays étudiés, méthodes, résultats, chiffres, conclusions — il faut chercher, même si la question ressemble à une question sur la bibliothèque. « Quels pays sont représentés dans le corpus ? » demande une recherche : le pays étudié n'est pas dans le titre.`
+Dès que la réponse suppose de savoir ce que les documents **contiennent** — faits, chiffres, méthodes, résultats, conclusions — il faut chercher, même si la question ressemble à une question sur la bibliothèque. « Quels pays sont représentés dans le corpus ? » demande une recherche : le pays étudié ne figure pas dans le titre.`
 
 const shorten = (t: Turn): Turn =>
   t.role === 'assistant' && t.content.length > ECHO

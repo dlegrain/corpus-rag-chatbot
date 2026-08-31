@@ -4,9 +4,15 @@ import Sources from './Sources'
 import { citedNumbers, linkCitations } from '../lib/citations'
 import type { Msg } from '../lib/types'
 
-type Props = { msg: Msg; streaming: boolean; index: number }
+type Props = {
+  msg: Msg
+  streaming: boolean
+  index: number
+  /** Où pointe le renvoi `[n]` — éventuellement dans un message précédent. */
+  ancre: (n: number) => string | null
+}
 
-export default function Message({ msg, streaming, index }: Props) {
+export default function Message({ msg, streaming, index, ancre }: Props) {
   const anchor = `src-${index}`
 
   if (msg.role === 'user') {
@@ -34,7 +40,7 @@ export default function Message({ msg, streaming, index }: Props) {
               remarkPlugins={[remarkGfm]}
               components={{
                 a: ({ href, children }) =>
-                  href?.startsWith(`#${anchor}-`) ? (
+                  href?.startsWith('#src-') ? (
                     <a
                       href={href}
                       className="ml-[0.18em] inline-flex h-[1.15em] min-w-[1.15em] translate-y-[-0.15em] items-center justify-center rounded-[5px] bg-accent-soft px-[0.3em] align-middle font-mono text-[0.68em] font-medium text-accent-ink no-underline transition hover:bg-accent hover:text-white"
@@ -48,7 +54,7 @@ export default function Message({ msg, streaming, index }: Props) {
                   ),
               }}
             >
-              {linkCitations(msg.content, anchor)}
+              {linkCitations(msg.content, ancre)}
             </ReactMarkdown>
             {streaming && (
               <span className="ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.15em] bg-accent align-middle [animation:pulse-dot_1s_ease-in-out_infinite]" />

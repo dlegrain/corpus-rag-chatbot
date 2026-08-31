@@ -584,9 +584,14 @@ Les routes sont déclarées dans chaque function via `export const config = { pa
 │   ├── functions/              chat.mts · ingest.mts · documents.mts  → routes /api/*
 │   └── lib/                    embed · supabase · metadata · history · catalog
 │                               plan (planificateur) · retrieve (recherche) · prompt
-├── shared/                     chunk.js · meta.js   (navigateur + functions + scripts)
+├── shared/                     (navigateur + functions + scripts)
+│   ├── domaine.js              ★ LE SUJET DU CHATBOT — le seul fichier à changer
+│   ├── domaine.exemple.js      Gabarit commenté, à copier sur le précédent
+│   └── chunk.js · meta.js      Découpage et métadonnées
 ├── scripts/seed-pdfs.mjs       Indexation en masse d'un dossier via l'API
+├── scripts/scenarios.mjs       Les conversations du banc d'essai — à adapter
 ├── scripts/test-chat.mjs       Banc d'essai des conversations multi-tours
+├── scripts/juge.mjs            Comparaison A/B aveugle de deux jeux de réponses
 ├── supabase/schema.sql         Tables, index HNSW, fonction de recherche, RLS
 ├── screenshots/                Captures du README
 └── pdfs/                       Corpus source — non versionné
@@ -598,23 +603,72 @@ Convention appliquée : **un fichier = une responsabilité, ~200 lignes maximum*
 
 ## Adapter à un autre corpus
 
-Rien dans l'architecture n'est spécifique aux articles scientifiques. Le passage à un corpus
-réglementaire, didactique ou interne se joue sur **cinq fichiers**, aucun ne dépassant quelques
-dizaines de lignes.
+Rien dans l'architecture n'est spécifique aux articles scientifiques. Le sujet du chatbot tient
+dans **un seul fichier de code**, [`shared/domaine.js`](shared/domaine.js) — qui ne contient aucune
+logique, uniquement des phrases.
 
-### Les cinq points de bascule
+```bash
+cp shared/domaine.exemple.js shared/domaine.js   # puis remplissez
+```
 
-| # | Fichier | Ce qu'on y change |
-|---|---|---|
-| 1 | [`netlify/lib/prompt.ts`](netlify/lib/prompt.ts) | Le prompt système : rôle, public visé, règles de citation, ton. **C'est le levier principal.** |
-| 2 | [`netlify/lib/metadata.ts`](netlify/lib/metadata.ts) | Le `SCHEMA` JSON des métadonnées à extraire de l'en-tête, et la consigne d'extraction. |
-| 3 | [`shared/chunk.js`](shared/chunk.js) | `TARGET` / `OVERLAP` selon la densité du document. |
-| 4 | [`src/components/EmptyState.tsx`](src/components/EmptyState.tsx) | Les suggestions de départ et les textes d'accueil. |
-| 5 | [`netlify/functions/chat.mts`](netlify/functions/chat.mts) | `MATCH_COUNT` : nombre de passages injectés. |
+Le gabarit est commenté ligne à ligne, avec un exemple rempli pour un corpus de procédures RH.
 
-À quoi s'ajoutent, côté cosmétique : le `<title>` dans `index.html`, les libellés de
-[`Sidebar.tsx`](src/components/Sidebar.tsx) (« Corpus », « Base documentaire ») et le bloc de marque
-[`BrandCard.tsx`](src/components/BrandCard.tsx).
+### 1. Le sujet — `shared/domaine.js`
+
+| Clé | Ce que ça change |
+|---|---|
+| `role` | Qui est l'assistant, à qui il parle. **Le levier le plus puissant du système.** |
+| `natureDuCorpus` | Comment le corpus est décrit au planificateur de recherche et au juge. |
+| `unite` / `unitePluriel` | Le mot pour une unité documentaire : « article », « texte », « procédure ». |
+| `langueDocuments` | Consigne de langue, si les documents ne sont pas dans celle des utilisateurs. **Laisser vide sinon** : une consigne fausse dégrade silencieusement la recherche à chaque question. |
+| `reglesMetier` | Ce qui fait une bonne réponse dans votre domaine. |
+| `accueilTitre`, `suggestions` | L'écran d'accueil et les questions proposées au premier lancement. |
+
+Ces valeurs alimentent le prompt de génération, le planificateur, l'écran d'accueil et le banc
+d'essai. Aucun autre fichier de code n'a besoin d'être touché pour changer de sujet.
+
+### 2. Les trois réglages techniques
+
+Indépendants du sujet, ils dépendent de la **forme** de vos documents.
+
+| Fichier | Réglage |
+|---|---|
+| [`netlify/lib/metadata.ts`](netlify/lib/metadata.ts) | Le `SCHEMA` JSON des métadonnées à extraire de l'en-tête, et la consigne d'extraction. |
+| [`shared/chunk.js`](shared/chunk.js) | `TARGET` / `OVERLAP` selon la densité du document. |
+| [`netlify/lib/retrieve.ts`](netlify/lib/retrieve.ts) | `BUDGET` et `TOTAL` : combien de passages sont envoyés au modèle. Plus haut = réponses mieux ancrées, coût plus élevé. |
+
+### 3. L'identité visuelle
+
+Le thème tient dans **onze variables** en haut de [`src/index.css`](src/index.css) — Tailwind v4
+lit ces jetons, il n'y a pas de fichier de configuration séparé :
+
+```css
+@theme {
+  --color-paper:  #fbfaf8;   /* fond de page */
+  --color-ink:    #141d27;   /* texte principal */
+  --color-accent: #2f6fed;   /* citations, liens, boutons */
+  --font-serif:   'Instrument Serif', ui-serif, Georgia, serif;   /* les titres */
+  /* … */
+}
+```
+
+Changer `--color-accent` et `--font-serif` suffit à donner au chatbot une autre personnalité. Les
+composants n'écrivent jamais une couleur en dur : ils utilisent `text-ink`, `bg-paper`,
+`border-line`, `bg-accent-soft`.
+
+S'y ajoutent le `<title>` dans [`index.html`](index.html), les libellés de
+[`Sidebar.tsx`](src/components/Sidebar.tsx) (« Corpus », « Base documentaire ») et le pied de page.
+
+> ⚠️ **[`BrandCard.tsx`](src/components/BrandCard.tsx) porte ma marque** — nom, logo et lien vers
+> ai-shift.be. La licence MIT couvre le code, pas mon identité : remplacez ce composant par la
+> vôtre, ou retirez-le. Idem pour le logo dans [`public/`](public/).
+
+### 4. Vérifier que ça marche encore
+
+Réécrivez les questions de [`scripts/scenarios.mjs`](scripts/scenarios.mjs) pour vos documents. Les
+quatre scénarios testent des **mécanismes** — relance elliptique, changement de sujet, comparaison,
+robustesse sur six tours — pas un sujet : gardez la forme, changez les questions. Puis lancez le
+banc d'essai décrit au chapitre « Évaluation ».
 
 ### Trois profils concrets
 
@@ -665,7 +719,8 @@ Conservez le numéro d'article à la place de `page` dans le chunk.
   restitue la règle et ses conditions.
 ```
 
-**4. `MATCH_COUNT`** — plutôt 18–20 : une question réglementaire croise souvent plusieurs textes.
+**4. `BUDGET` / `TOTAL`** dans [`retrieve.ts`](netlify/lib/retrieve.ts) — monter au-delà des valeurs
+par défaut : une question réglementaire croise souvent plusieurs textes.
 
 </details>
 

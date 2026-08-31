@@ -9,6 +9,7 @@
  */
 import { readFileSync } from 'node:fs'
 import Anthropic from '@anthropic-ai/sdk'
+import { DOMAINE } from '../shared/domaine.js'
 
 const [f1, f2] = process.argv.slice(2)
 if (!f1 || !f2) throw new Error('usage: node scripts/juge.mjs <avant.json> <apres.json>')
@@ -28,7 +29,7 @@ const SCHEMA = {
   additionalProperties: false,
 }
 
-const CONSIGNE = `Tu évalues deux réponses d'un assistant documentaire adossé à un corpus de 12 articles scientifiques sur la vaccination en pharmacie d'officine. Les deux répondent à la même question, dans le même contexte de conversation.
+const CONSIGNE = `Tu évalues deux réponses d'un assistant documentaire adossé à ${DOMAINE.natureDuCorpus}. Les deux répondent à la même question, dans le même contexte de conversation.
 
 Juge selon ces critères, par ordre d'importance :
 

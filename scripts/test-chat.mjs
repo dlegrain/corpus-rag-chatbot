@@ -3,7 +3,7 @@
  * maintient l'état comme le client (numéros de citation, passages cités).
  *
  *   node scripts/test-chat.mjs                    # contre netlify dev
- *   BASE=https://corpus-scientifique.netlify.app node scripts/test-chat.mjs
+ *   BASE=https://votre-site.netlify.app node scripts/test-chat.mjs
  *   node scripts/test-chat.mjs 3                  # un seul scénario
  */
 import { writeFileSync } from 'node:fs'
@@ -17,6 +17,7 @@ import {
   rouge,
   vert,
 } from './lib/client-chat.mjs'
+import { scenarios } from './scenarios.mjs'
 
 function afficher(question, r) {
   console.log(`\n  ${gras('▸ ' + question)}`)
@@ -38,7 +39,7 @@ function afficher(question, r) {
   const docsCites = new Set(r.sources.filter((s) => cites.has(s.n)).map((s) => s.documentId))
   console.log(
     gris(
-      `    sources : ${r.sources.length} sur ${docs.size} article(s), max ${concentration} d'un même · ${docsCites.size} article(s) réellement cité(s)`,
+      `    sources : ${r.sources.length} sur ${docs.size} document(s), max ${concentration} d'un même · ${docsCites.size} document(s) réellement cité(s)`,
     ),
   )
   console.log(gris(`    (${resume}${r.sources.length > 6 ? '…' : ''})`))
@@ -78,8 +79,8 @@ function bilan() {
   const moy = (f) => (avecSources.reduce((s, t) => s + f(t), 0) / avecSources.length).toFixed(1)
   console.log(
     `\n${gras('── Bilan')}  ${avecSources.length} tours avec recherche · ` +
-      `${moy((t) => t.articles)} articles/réponse · concentration max ${moy((t) => t.concentration)} · ` +
-      `${moy((t) => t.articlesCites)} articles cités · ${moy((t) => t.ms / 1000)} s/tour`,
+      `${moy((t) => t.articles)} documents/réponse · concentration max ${moy((t) => t.concentration)} · ` +
+      `${moy((t) => t.articlesCites)} documents cités · ${moy((t) => t.ms / 1000)} s/tour`,
   )
   const sortie = process.env.DUMP
   if (sortie) {
@@ -91,55 +92,43 @@ function bilan() {
 const verifier = (label, ok) => console.log(`  ${ok ? vert('✓') : rouge('✗')} ${label}`)
 
 const docs = await (await fetch(`${BASE}/api/documents`)).json().then((d) => d.documents)
-console.log(gris(`${docs.length} articles dans le corpus · ${BASE}`))
+console.log(gris(`${docs.length} documents dans le corpus · ${BASE}`))
 const cible = docs.find((d) => d.authors && d.year) ?? docs[0]
+const SC = scenarios(cible)
 const seul = process.argv[2] ? Number(process.argv[2]) : null
 const lancer = (n) => !seul || seul === n
 
 if (lancer(1)) {
-  const t = await conversation('1. Relance pronominale au 3e tour', [
-    'Quels freins à la vaccination par les pharmaciens sont rapportés ?',
-    'Lequel de ces freins revient le plus souvent ?',
-    'Et chez les patients âgés ?',
-  ])
+  const s = SC[0]
+  const t = await conversation(s.titre, s.tours)
   verifier('le plan du 3e tour est autoportant', t[2].plan[0]?.q.length > 25)
   verifier('le 3e tour cherche dans le corpus', t[2].sources.length > 0)
   // Le vrai défaut serait « de quoi parlez-vous ? » : le sujet doit avoir survécu.
-  verifier('le 3e tour a gardé le sujet', /vaccin|pharmac/i.test(t[2].reponse))
+  verifier('le 3e tour a gardé le sujet', s.motDuSujet.test(t[2].reponse))
 }
 
 if (lancer(2)) {
-  const t = await conversation('2. Changement de sujet franc', [
-    'Que dit le corpus sur la formation des pharmaciens ?',
-    'Passons à autre chose : que dit-il de la couverture vaccinale contre la grippe ?',
-  ])
-  const reportes = t[1].sources.filter((s) => s.recalled).length
+  const s = SC[1]
+  const t = await conversation(s.titre, s.tours)
+  const reportes = t[1].sources.filter((x) => x.recalled).length
   verifier(`les passages du sujet précédent s'évincent (${reportes} reportés)`, reportes <= 2)
 }
 
 if (lancer(3)) {
-  const t = await conversation('3. Comparaison entre deux articles', [
-    'Que rapporte le corpus sur les obstacles à la vaccination en officine ?',
-    `Compare cela à ce que dit ${cible.authors} ${cible.year}.`,
-  ])
+  const s = SC[2]
+  const t = await conversation(s.titre, s.tours)
   verifier('le plan contient 2 requêtes', t[1].plan.length >= 2)
   verifier('un document est explicitement ciblé', t[1].plan.some((q) => q.doc))
-  verifier('les sources couvrent au moins 2 articles', t[1].docs.size >= 2)
+  verifier('les sources couvrent au moins 2 documents', t[1].docs.size >= 2)
 }
 
 if (lancer(4)) {
-  const t = await conversation('4. Robustesse sur 6 tours', [
-    'Quels pays sont représentés dans le corpus ?',
-    'Combien y a-t-il d’articles en tout ?',
-    'Que dit le corpus sur l’hésitation vaccinale ?',
-    'Quels sont les leviers identifiés ?',
-    'Le plus efficace selon les auteurs ?',
-    'Merci, c’est clair.',
-  ])
+  const s = SC[3]
+  const t = await conversation(s.titre, s.tours)
   verifier('aucune erreur sur les 6 tours', t.every((x) => !x.erreur))
-  verifier('« quels pays » déclenche bien une recherche', t[0].plan.length > 0)
-  verifier('« combien d’articles » ne déclenche pas de recherche', t[1].plan.length === 0)
-  verifier('« merci » ne déclenche pas de recherche', t[5].plan.length === 0)
+  verifier('la 1re question déclenche bien une recherche', t[0].plan.length > 0)
+  verifier('« combien de documents » ne déclenche pas de recherche', t[1].plan.length === 0)
+  verifier('le tour de politesse ne déclenche pas de recherche', t[5].plan.length === 0)
 }
 
 // Un gabarit de la consigne recopié au lieu d'être instancié : la fuite est

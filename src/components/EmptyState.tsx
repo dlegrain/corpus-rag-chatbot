@@ -1,11 +1,7 @@
+import { DOMAINE } from '../../shared/domaine.js'
 import type { Doc } from '../lib/types'
 
-const SUGGESTIONS = [
-  'Quels sont les principaux freins à la vaccination en pharmacie identifiés dans le corpus ?',
-  'Quels effets la vaccination par le pharmacien a-t-elle sur la couverture vaccinale ?',
-  'Quelles barrières réglementaires reviennent d’un pays à l’autre ?',
-  'Compare les méthodologies employées : quels devis d’étude et quelles tailles d’échantillon ?',
-]
+const SUGGESTIONS = DOMAINE.suggestions
 
 type Props = {
   docs: Doc[]
@@ -20,15 +16,15 @@ export default function EmptyState({ docs, scopedDoc, onPick }: Props) {
   return (
     <div className="pt-6 pb-4 lg:pt-14">
       <h2 className="font-serif text-[2.4rem] leading-[1.08] tracking-tight text-ink lg:text-[3rem]">
-        Interrogez votre
+        {DOMAINE.accueilTitre}
         <br />
-        <span className="italic">bibliothèque scientifique</span>
+        <span className="italic">{DOMAINE.accueilTitreItalique}</span>
       </h2>
 
       <p className="mt-4 max-w-xl text-[0.95rem] leading-relaxed text-ink-soft">
         {docs.length === 0 ? (
           <>
-            Le corpus est vide. Glissez vos articles au format PDF n’importe où sur la page : ils
+            Le corpus est vide. Glissez vos documents au format PDF n’importe où sur la page : ils
             sont lus, découpés en passages et indexés en quelques secondes.
           </>
         ) : scopedDoc ? (
@@ -38,7 +34,7 @@ export default function EmptyState({ docs, scopedDoc, onPick }: Props) {
           </>
         ) : (
           <>
-            {docs.length} articles indexés{span && ` (${span})`}. Posez une question en français :
+            {docs.length} {DOMAINE.unitePluriel} indexés{span && ` (${span})`}. Posez une question en français :
             la réponse s’appuie sur les passages les plus proches, avec la référence et la page de
             chacun.
           </>

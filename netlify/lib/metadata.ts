@@ -1,3 +1,4 @@
+import { DOMAINE } from '../../shared/domaine.js'
 import { parseFilename } from '../../shared/meta.js'
 
 export type DocMeta = {
@@ -41,7 +42,7 @@ export async function extractMeta(filename: string, sample: string): Promise<Doc
               parts: [
                 {
                   text:
-                    `Extrais les métadonnées bibliographiques de cet article scientifique.\n` +
+                    `Extrais les métadonnées de ce document (${DOMAINE.unite}).\n` +
                     `- "authors" : format "Nom AB et al." (premier auteur uniquement + "et al." s'il y en a plusieurs).\n` +
                     `- "journal" : abréviation de la revue si disponible.\n` +
                     `- Si une information est absente, mets "" (ou 0 pour l'année).\n\n` +
