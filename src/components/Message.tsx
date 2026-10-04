@@ -18,7 +18,7 @@ export default function Message({ msg, streaming, index, ancre }: Props) {
   if (msg.role === 'user') {
     return (
       <div className="animate-rise flex justify-end">
-        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-ink px-4 py-2.5 text-[0.92rem] leading-relaxed text-white">
+        <div className="max-w-[85%] rounded-xl rounded-br-xs bg-accent px-4 py-2.5 text-corps leading-[1.55] text-accent-ink">
           {msg.content}
         </div>
       </div>
@@ -30,7 +30,8 @@ export default function Message({ msg, streaming, index, ancre }: Props) {
   return (
     <div className="animate-rise">
       {msg.error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[0.85rem] text-red-700">
+        <div className="rounded-xl border border-rouge-bord bg-rouge-soft px-4 py-3 text-note leading-normal text-ink-soft">
+          <p className="mb-1 text-etiquette font-bold tracking-[0.08em] text-rouge uppercase">Erreur</p>
           {msg.error}
         </div>
       ) : (
@@ -43,7 +44,7 @@ export default function Message({ msg, streaming, index, ancre }: Props) {
                   href?.startsWith('#src-') ? (
                     <a
                       href={href}
-                      className="ml-[0.18em] inline-flex h-[1.15em] min-w-[1.15em] translate-y-[-0.15em] items-center justify-center rounded-[5px] bg-accent-soft px-[0.3em] align-middle font-mono text-[0.68em] font-medium text-accent-ink no-underline transition hover:bg-accent hover:text-white"
+                      className="cite"
                     >
                       {children}
                     </a>

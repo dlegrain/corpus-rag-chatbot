@@ -1,0 +1,115 @@
+/* AI Shift — jetons compilés depuis tokens.json. Ne pas éditer à la main : éditer tokens.json. */
+
+@font-face {
+  font-family: 'Inter';
+  src: url('fonts/inter-latin-wght-normal.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root,
+[data-theme="clair"] {
+  --accent: #4f46e5; /* L'indigo AI Shift, la seule couleur choisie : surtitres, puces, chiffres, boutons, liserés de prompt, barre de progression. */
+  --accent-ink: #ffffff; /* Le texte posé sur accent : libellé des boutons, badge « À vous ». */
+  --accent-deep: #3b36ac; /* Le bout sombre du dégradé de marque et l'état survolé des boutons. */
+  --accent-soft: #edecfd; /* Fond des pastilles, des cases à remplir, de la colonne mise en avant et de la 4e marche de l'échelle. */
+  --accent-clair: #c7d2fe; /* Le surtitre « Conçu & animé par » à l'intérieur du bloc de marque, sur le dégradé sombre. */
+  --accent-pale: #a5b4fc; /* L'intitulé des notes du présentateur, sur le fond fg du volet de notes. */
+  --bg: #f5f6f9; /* Le fond de page, projection comme web. */
+  --surface: #ffffff; /* Les cartes posées sur bg : prompt, bulle de réponse, marche d'échelle, carte d'exercice, cartouche du logo. */
+  --surface-2: #fafbfc; /* La surface plus calme : colonne d'un duo, document de référence, prompt de la page participants. */
+  --fg: #0b1026; /* Titres et texte courant sur bg (17,4:1) et sur surface (18,8:1). */
+  --fg-soft: #2a3150; /* Le texte secondaire long — consignes, listes d'une colonne, légendes, pied de page — sur bg et surface. */
+  --muted: #6b7289; /* Les mentions discrètes : sous-titre, libellés de colonne, barre du bas, numéro d'exercice. */
+  --border: #e2e4ec; /* Le trait d'1px (2px sur les colonnes et les marches) de toutes les cartes, et le fond creux des barres de probabilité. */
+  --rouge: #b73d3d; /* Le signal négatif, jamais décoratif : colonne « ton rouge », tampon FAUX. */
+  --rouge-soft: #fbf3f3; /* Le fond d'une colonne au ton rouge. */
+  --vert: #1f8a5b; /* Le signal positif : tampon VRAI, bouton « Copié ✓ ». */
+  --surligne: #facc1573; /* Le surlignage jaune des passages cités dans une réponse obtenue (la marque ==texte==). */
+  --accent-bord: #4f46e566; /* La bordure d'une colonne mise en avant. */
+  --accent-bord-fort: #4f46e573; /* La bordure de la dernière marche de l'échelle du contexte, celle qui porte le plus de contexte. */
+  --rouge-bord: #b73d3d59; /* La bordure d'une colonne au ton rouge, avec rouge-soft en fond. */
+  --trame: #0b102617; /* Le point de la trame de fond, à 22px de pas, estompé vers les bords. */
+  --notes-fg: #eef0f8; /* Le texte des notes du présentateur sur le volet fg. */
+  --ombre-carte: 0 10px 30px -22px rgba(15, 23, 42, 0.4);
+  --ombre-prompt: 0 15px 40px -25px rgba(15, 23, 42, 0.3);
+  --ombre-image: 0 20px 60px -20px rgba(15, 23, 42, 0.35);
+  --ombre-notes: 0 10px 40px rgba(0, 0, 0, 0.3);
+  --cerne-logo: 0 0 0 1px rgba(0, 0, 0, 0.05);
+  color-scheme: light;
+}
+
+:root {
+  /* spacing */
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 14px;
+  --space-7: 16px;
+  --space-8: 20px;
+  --space-9: 22px;
+  --space-10: 28px;
+  --space-11: 32px;
+  --space-12: 36px;
+  --space-13: 48px;
+  --space-14: 56px;
+  /* radius */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 22px;
+  --radius-pill: 99px;
+  /* projection */
+  --proj-chiffre: 20vh;
+  --proj-niveau: 11vh;
+  --proj-t-xl: 8.4vh;
+  --proj-t-l: 6.6vh;
+  --proj-quiz: 6vh;
+  --proj-t-m: 5.4vh;
+  --proj-sous: 3vh;
+  --proj-barre: 2.8vh;
+  --proj-consigne: 2.6vh;
+  --proj-prompt: 2.5vh;
+  --proj-pied: 2.4vh;
+  --proj-surtitre: 1.9vh;
+  --proj-notes: 1.8vh;
+  --proj-legende: 1.7vh;
+  --proj-pad-y: 8vh;
+  --proj-pad-bas: 10vh;
+  --proj-pad-x: 7vw;
+  --proj-radius-col: 2vh;
+  --proj-radius-prompt: 1.6vh;
+  --proj-trait: 0.7vh;
+  --proj-progression: 0.5vh;
+  --proj-mesure: 80vw;
+  --proj-mesure-large: 84vw;
+  --proj-mesure-sous: 64vw;
+  /* layout */
+  --page-max: 860px;
+  --mesure: 640px;
+  --mesure-courte: 520px;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/* Titres */
+.titre-page { font-family: var(--font-sans); font-size: 46px; line-height: 1.1; font-weight: 800; letter-spacing: -0.02em; }
+.titre-bloc { font-family: var(--font-sans); font-size: 32px; line-height: 1.15; font-weight: 800; letter-spacing: -0.02em; }
+.titre-carte { font-family: var(--font-sans); font-size: 21px; line-height: 1.25; font-weight: 750; letter-spacing: -0.01em; }
+
+/* Texte */
+.intro { font-family: var(--font-sans); font-size: 17px; line-height: 1.55; font-weight: 400; }
+.corps { font-family: var(--font-sans); font-size: 15.5px; line-height: 1.55; font-weight: 400; }
+.corps-serre { font-family: var(--font-sans); font-size: 15px; line-height: 1.5; font-weight: 400; }
+.note { font-family: var(--font-sans); font-size: 14.5px; line-height: 1.5; font-weight: 400; }
+.meta { font-family: var(--font-sans); font-size: 13px; line-height: 1.4; font-weight: 650; }
+
+/* Étiquettes */
+.surtitre { font-family: var(--font-sans); font-size: 13px; line-height: 1.2; font-weight: 700; letter-spacing: 0.1em; }
+.etiquette { font-family: var(--font-sans); font-size: 11px; line-height: 1.2; font-weight: 700; letter-spacing: 0.08em; }
+.badge { font-family: var(--font-sans); font-size: 11px; line-height: 1.2; font-weight: 750; letter-spacing: 0.08em; }
+

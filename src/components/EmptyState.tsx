@@ -15,13 +15,13 @@ export default function EmptyState({ docs, scopedDoc, onPick }: Props) {
 
   return (
     <div className="pt-6 pb-4 lg:pt-14">
-      <h2 className="font-serif text-[2.4rem] leading-[1.08] tracking-tight text-ink lg:text-[3rem]">
+      <h2 className="text-[clamp(30px,6vw,46px)] leading-[1.08] font-extrabold tracking-[-0.02em] text-ink">
         {DOMAINE.accueilTitre}
         <br />
-        <span className="italic">{DOMAINE.accueilTitreItalique}</span>
+        <span className="text-accent">{DOMAINE.accueilTitreAccent}</span>
       </h2>
 
-      <p className="mt-4 max-w-xl text-[0.95rem] leading-relaxed text-ink-soft">
+      <p className="mt-4 max-w-(--mesure) text-intro leading-[1.55] text-ink-soft">
         {docs.length === 0 ? (
           <>
             Le corpus est vide. Glissez vos documents au format PDF n’importe où sur la page : ils
@@ -43,7 +43,7 @@ export default function EmptyState({ docs, scopedDoc, onPick }: Props) {
 
       {docs.length > 0 && (
         <div className="mt-9">
-          <p className="text-[0.66rem] font-semibold tracking-[0.11em] text-muted uppercase">
+          <p className="text-meta font-bold tracking-[0.1em] text-accent uppercase">
             Pour commencer
           </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -51,7 +51,7 @@ export default function EmptyState({ docs, scopedDoc, onPick }: Props) {
               <button
                 key={s}
                 onClick={() => onPick(s)}
-                className="group rounded-xl border border-line bg-surface px-4 py-3.5 text-left text-[0.83rem] leading-snug text-ink-soft transition hover:border-accent/40 hover:bg-accent-soft hover:text-accent-ink"
+                className="group rounded-xl border border-line bg-surface px-4 py-3.5 text-left text-note leading-normal text-ink-soft shadow-carte transition hover:border-accent-bord hover:bg-accent-soft hover:text-ink"
               >
                 {s}
               </button>

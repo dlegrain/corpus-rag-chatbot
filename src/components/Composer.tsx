@@ -27,9 +27,9 @@ export default function Composer({ onSend, onStop, busy, disabled, placeholder }
   }
 
   return (
-    <div className="shrink-0 border-t border-line bg-surface/85 backdrop-blur">
+    <div className="relative shrink-0 border-t border-line bg-surface/85 backdrop-blur">
       <div className="mx-auto w-full max-w-3xl px-5 py-4 lg:px-8">
-        <div className="flex items-end gap-2 rounded-2xl border border-line bg-surface px-3 py-2 shadow-[0_1px_2px_rgba(20,29,39,0.04)] transition focus-within:border-accent/50 focus-within:ring-3 focus-within:ring-accent/10">
+        <div className="flex items-end gap-2 rounded-lg border border-line bg-surface px-3 py-2 shadow-prompt outline-2 outline-offset-2 outline-transparent transition focus-within:border-accent focus-within:outline-accent">
           <textarea
             ref={area}
             rows={1}
@@ -46,13 +46,13 @@ export default function Composer({ onSend, onStop, busy, disabled, placeholder }
                 submit()
               }
             }}
-            className="max-h-[180px] flex-1 resize-none bg-transparent py-1.5 text-[0.92rem] leading-relaxed outline-none placeholder:text-muted disabled:cursor-not-allowed"
+            className="max-h-[180px] flex-1 resize-none bg-transparent py-1.5 text-corps leading-[1.55] outline-none placeholder:text-muted disabled:cursor-not-allowed"
           />
 
           {busy ? (
             <button
               onClick={onStop}
-              className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-paper text-ink-soft transition hover:bg-line"
+              className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-line bg-surface-2 text-ink-soft transition hover:border-accent-bord hover:text-accent"
               aria-label="Arrêter"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
@@ -63,7 +63,7 @@ export default function Composer({ onSend, onStop, busy, disabled, placeholder }
             <button
               onClick={submit}
               disabled={!value.trim() || disabled}
-              className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-ink text-white transition hover:bg-accent disabled:cursor-not-allowed disabled:bg-line disabled:text-muted"
+              className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-accent text-accent-ink transition hover:bg-accent-deep disabled:cursor-not-allowed disabled:bg-line disabled:text-muted"
               aria-label="Envoyer"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -73,7 +73,7 @@ export default function Composer({ onSend, onStop, busy, disabled, placeholder }
           )}
         </div>
 
-        <p className="mt-2 text-center text-[0.66rem] text-muted">
+        <p className="mt-2.5 text-center text-meta text-muted">
           Réponses générées à partir des seuls articles indexés · vérifiez toujours la source
           citée.
         </p>

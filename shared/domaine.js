@@ -54,9 +54,9 @@ export const DOMAINE = {
     `Quand tu donnes des chiffres (prévalences, OR, IC95%, effectifs), reprends-les exactement tels qu'ils figurent dans l'extrait.`,
   ],
 
-  /** Écran d'accueil : le titre, dont la seconde ligne est en italique. */
+  /** Écran d'accueil : le titre, dont la seconde ligne passe en couleur d'accent. */
   accueilTitre: 'Interrogez votre',
-  accueilTitreItalique: 'bibliothèque scientifique',
+  accueilTitreAccent: 'bibliothèque scientifique',
 
   /** Questions proposées au premier lancement. Trois ou quatre suffisent. */
   suggestions: [

@@ -33,8 +33,9 @@ export default function Chat({ chat, docs, scopedDoc }: Props) {
   const empty = chat.messages.length === 0
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto">
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      {empty && <div className="dotgrid" />}
+      <div className="relative min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-3xl px-5 py-8 lg:px-8">
           {empty ? (
             <EmptyState docs={docs} scopedDoc={scopedDoc} onPick={chat.send} />

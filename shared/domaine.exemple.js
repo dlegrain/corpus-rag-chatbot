@@ -52,9 +52,9 @@ export const DOMAINE = {
     `Distingue ce qui est une obligation de ce qui est une recommandation.`,
   ],
 
-  /** Écran d'accueil : le titre, dont la seconde ligne est en italique. */
+  /** Écran d'accueil : le titre, dont la seconde ligne passe en couleur d'accent. */
   accueilTitre: 'Interrogez vos',
-  accueilTitreItalique: 'procédures internes',
+  accueilTitreAccent: 'procédures internes',
 
   /** Questions proposées au premier lancement. Trois ou quatre suffisent. */
   suggestions: [

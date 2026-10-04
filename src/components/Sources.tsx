@@ -11,13 +11,13 @@ export default function Sources({ sources, cited, anchor }: Props) {
   return (
     <div className="mt-5 border-t border-line pt-3.5">
       <div className="flex items-baseline justify-between gap-3">
-        <h4 className="text-[0.66rem] font-semibold tracking-[0.11em] text-muted uppercase">
+        <h4 className="text-etiquette font-bold tracking-[0.08em] text-accent uppercase">
           Sources {used.length > 0 && `· ${used.length} citée${used.length > 1 ? 's' : ''}`}
         </h4>
         {sources.length > shown.length || openAll ? (
           <button
             onClick={() => setOpenAll(!openAll)}
-            className="text-[0.7rem] font-medium text-accent hover:text-accent-ink"
+            className="text-meta font-[650] text-accent hover:text-accent-deep"
           >
             {openAll ? 'Réduire' : `Voir les ${sources.length} passages retrouvés`}
           </button>
@@ -29,19 +29,19 @@ export default function Sources({ sources, cited, anchor }: Props) {
           <li
             key={s.n}
             id={`${anchor}-${s.n}`}
-            className="group flex gap-2.5 rounded-lg px-2 py-1.5 transition target:bg-accent-soft hover:bg-paper"
+            className="group flex gap-2.5 rounded-lg border border-transparent px-2 py-1.5 transition target:border-accent-bord target:bg-accent-soft hover:border-line hover:bg-surface"
           >
-            <span className="mt-px shrink-0 rounded-[5px] bg-paper px-1.5 py-0.5 font-mono text-[0.66rem] font-medium text-ink-soft">
+            <span className="mt-px h-fit shrink-0 rounded-xs border border-line bg-surface px-1.5 py-0.5 font-mono text-etiquette font-medium text-ink-soft">
               {s.n}
             </span>
             <div className="min-w-0">
-              <p className="text-[0.78rem] leading-snug font-medium text-ink">
+              <p className="text-meta leading-snug font-[650] text-ink">
                 {s.authors ?? s.title}
-                {s.year && <span className="font-normal text-muted"> · {s.year}</span>}
-                {s.journal && <span className="font-normal text-muted"> · {s.journal}</span>}
-                {s.page && <span className="font-mono text-muted"> · p. {s.page}</span>}
+                {s.year && <span className="font-normal text-ink-soft"> · {s.year}</span>}
+                {s.journal && <span className="font-normal text-ink-soft"> · {s.journal}</span>}
+                {s.page && <span className="font-mono font-normal text-ink-soft"> · p. {s.page}</span>}
               </p>
-              <p className="mt-0.5 line-clamp-2 text-[0.72rem] leading-relaxed text-muted group-hover:line-clamp-none">
+              <p className="mt-0.5 line-clamp-2 text-meta leading-normal text-ink-soft group-hover:line-clamp-none">
                 {s.excerpt}
               </p>
             </div>

@@ -8,6 +8,6 @@ export declare const DOMAINE: {
   langueDocuments: string
   reglesMetier: string[]
   accueilTitre: string
-  accueilTitreItalique: string
+  accueilTitreAccent: string
   suggestions: string[]
 }

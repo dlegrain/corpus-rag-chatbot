@@ -10,7 +10,7 @@ voir [Adapter à un autre corpus](#adapter-à-un-autre-corpus).
 
 **Démo en ligne : https://corpus-scientifique.netlify.app**
 
-![Réponse avec citations cliquables](screenshots/2026-08-26-reponse-avec-citations.png)
+![Réponse avec citations cliquables](screenshots/2026-10-04-reponse-avec-citations.png)
 
 ---
 
@@ -45,8 +45,8 @@ voir [Adapter à un autre corpus](#adapter-à-un-autre-corpus).
 
 <table>
 <tr>
-<td width="50%"><img src="screenshots/2026-08-26-accueil-corpus-vide-de-conversation.png" alt="Écran d'accueil"></td>
-<td width="50%"><img src="screenshots/2026-08-26-depot-pdf-en-cours.png" alt="Dépôt d'un PDF en cours"></td>
+<td width="50%"><img src="screenshots/2026-10-04-accueil-design-system-ai-shift.png" alt="Écran d'accueil"></td>
+<td width="50%"><img src="screenshots/2026-10-04-depot-pdf-en-cours.png" alt="Dépôt d'un PDF en cours"></td>
 </tr>
 <tr>
 <td align="center"><em>Accueil — corpus indexé, suggestions de départ</em></td>
@@ -577,6 +577,7 @@ Les routes sont déclarées dans chaque function via `export const config = { pa
 
 ```
 ├── src/                        Front React
+│   ├── ai-shift/               tokens.css + police Inter : les valeurs du thème
 │   ├── components/             Sidebar, Chat, Message, Sources, Composer, BrandCard…
 │   ├── hooks/                  useDocuments (corpus + upload), useChat (SSE + mémoire)
 │   └── lib/                    pdf.ts (extraction), api.ts, types.ts, citations.ts
@@ -639,29 +640,39 @@ Indépendants du sujet, ils dépendent de la **forme** de vos documents.
 
 ### 3. L'identité visuelle
 
-Le thème tient dans **onze variables** en haut de [`src/index.css`](src/index.css) — Tailwind v4
-lit ces jetons, il n'y a pas de fichier de configuration séparé :
+Le thème livré est le **design system AI Shift** : une seule couleur choisie (un indigo), Inter,
+des cartes bordées plutôt que teintées. Il tient en deux fichiers :
+
+- [`src/ai-shift/tokens.css`](src/ai-shift/tokens.css) — les valeurs : couleurs, rayons, ombres, et
+  la police Inter embarquée dans [`fonts/`](src/ai-shift/fonts/).
+- [`src/index.css`](src/index.css) — le bloc `@theme inline`, qui donne à chaque jeton un nom
+  d'utilitaire Tailwind v4 (`bg-paper`, `text-ink`, `border-line`…). Il n'y a pas de fichier de
+  configuration séparé.
 
 ```css
-@theme {
-  --color-paper:  #fbfaf8;   /* fond de page */
-  --color-ink:    #141d27;   /* texte principal */
-  --color-accent: #2f6fed;   /* citations, liens, boutons */
-  --font-serif:   'Instrument Serif', ui-serif, Georgia, serif;   /* les titres */
+/* src/ai-shift/tokens.css */
+:root {
+  --accent:      #4f46e5;   /* citations, liens, boutons, surtitres */
+  --accent-deep: #3b36ac;   /* survol, bout sombre du dégradé */
+  --accent-soft: #edecfd;   /* fond des renvois [n], de la ligne sélectionnée */
+  --bg:          #f5f6f9;   /* fond de page */
+  --fg:          #0b1026;   /* texte principal */
   /* … */
 }
 ```
 
-Changer `--color-accent` et `--font-serif` suffit à donner au chatbot une autre personnalité. Les
-composants n'écrivent jamais une couleur en dur : ils utilisent `text-ink`, `bg-paper`,
-`border-line`, `bg-accent-soft`.
+**Changez ces valeurs pour donner au chatbot votre propre identité** : les trois `--accent*`
+font l'essentiel du travail. Les composants n'écrivent jamais une couleur en dur, ils passent tous
+par les utilitaires ci-dessus — tout suit d'un coup. Le rendu des réponses (titres, listes,
+tableaux, renvois `[n]`) est dans [`src/prose.css`](src/prose.css).
 
 S'y ajoutent le `<title>` dans [`index.html`](index.html), les libellés de
 [`Sidebar.tsx`](src/components/Sidebar.tsx) (« Corpus », « Base documentaire ») et le pied de page.
 
-> ⚠️ **[`BrandCard.tsx`](src/components/BrandCard.tsx) porte ma marque** — nom, logo et lien vers
-> ai-shift.be. La licence MIT couvre le code, pas mon identité : remplacez ce composant par la
-> vôtre, ou retirez-le. Idem pour le logo dans [`public/`](public/).
+> ⚠️ **Le thème et [`BrandCard.tsx`](src/components/BrandCard.tsx) portent ma marque** — couleurs
+> AI Shift, nom, logos et lien vers ai-shift.be. La licence MIT couvre le code, pas mon identité :
+> avant de publier sous votre nom, changez au minimum les `--accent*`, remplacez `BrandCard` par
+> votre propre signature (ou retirez-le), et supprimez les logos de [`public/`](public/).
 
 ### 4. Vérifier que ça marche encore
 
