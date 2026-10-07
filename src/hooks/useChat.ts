@@ -27,7 +27,8 @@ function memoryOf(messages: Msg[]): ChatMemory {
   return { known, cited }
 }
 
-export function useChat(scopeId: string | null) {
+/** `scope` : les documents cochés dans la colonne de gauche ; vide = tout le corpus. */
+export function useChat(scope: string[]) {
   const [messages, setMessages] = useState<Msg[]>([])
   const [busy, setBusy] = useState(false)
   const abort = useRef<AbortController | null>(null)
@@ -49,7 +50,7 @@ export function useChat(scopeId: string | null) {
       try {
         await streamChat(
           history,
-          scopeId,
+          scope,
           memory,
           {
             onSources: (sources) => patchLast((m) => ({ ...m, sources })),
@@ -72,7 +73,7 @@ export function useChat(scopeId: string | null) {
         )
       }
     },
-    [messages, busy, scopeId],
+    [messages, busy, scope],
   )
 
   const stop = useCallback(() => abort.current?.abort(), [])

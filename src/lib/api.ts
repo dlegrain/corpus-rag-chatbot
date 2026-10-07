@@ -77,7 +77,8 @@ export type ChatMemory = { cited: number[]; known: Record<string, number> }
 /** Consomme le flux SSE de /api/chat. */
 export async function streamChat(
   messages: Msg[],
-  docId: string | null,
+  /** Les documents cochés ; vide = tout le corpus. */
+  docIds: string[],
   memory: ChatMemory,
   handlers: ChatEvents,
   signal?: AbortSignal,
@@ -87,7 +88,7 @@ export async function streamChat(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
-      docId,
+      docIds,
       cited: memory.cited,
       known: memory.known,
     }),

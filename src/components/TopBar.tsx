@@ -1,15 +1,23 @@
+import { DOMAINE } from '../../shared/domaine.js'
 import type { Doc } from '../lib/types'
 
 type Props = {
   count: number
-  scopedDoc: Doc | null
+  /** Les documents cochés ; vide = tout le corpus. */
+  scopedDocs: Doc[]
   onClearScope: () => void
   onMenu: () => void
   onReset: () => void
   hasMessages: boolean
 }
 
-export default function TopBar({ count, scopedDoc, onClearScope, onMenu, onReset, hasMessages }: Props) {
+/**
+ * Le périmètre de la recherche, toujours sous les yeux. C'est ce qui évite
+ * qu'une personne cherche en vain dans un document qu'elle a décoché sans s'en
+ * souvenir : un clic sur la pastille ramène à tout le corpus.
+ */
+export default function TopBar({ count, scopedDocs, onClearScope, onMenu, onReset, hasMessages }: Props) {
+  const n = scopedDocs.length
   return (
     <header className="flex shrink-0 items-center gap-3 border-b border-line bg-surface/80 px-4 py-3 backdrop-blur lg:px-8">
       <button onClick={onMenu} className="rounded-sm p-2 text-ink-soft hover:bg-paper lg:hidden" aria-label="Corpus">
@@ -19,13 +27,16 @@ export default function TopBar({ count, scopedDoc, onClearScope, onMenu, onReset
       </button>
 
       <div className="min-w-0 flex-1">
-        {scopedDoc ? (
+        {n > 0 ? (
           <button
             onClick={onClearScope}
+            title="Revenir à tout le corpus"
             className="group flex max-w-full items-center gap-2 rounded-(--radius-pill) bg-accent-soft px-3 py-1.5 text-meta font-[650] text-accent"
           >
-            <span className="shrink-0 text-etiquette font-bold tracking-[0.08em] uppercase">Article seul</span>
-            <span className="truncate text-ink">{scopedDoc.authors ?? scopedDoc.title}</span>
+            <span className="shrink-0 text-etiquette font-bold tracking-[0.08em] uppercase">
+              {n === 1 ? `${DOMAINE.unite} seul` : `${n} ${DOMAINE.unitePluriel}`}
+            </span>
+            <span className="truncate text-ink">{scopedDocs.map((d) => d.authors ?? d.title).join(' · ')}</span>
             <svg
               className="shrink-0 opacity-60 group-hover:opacity-100"
               width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
@@ -36,7 +47,12 @@ export default function TopBar({ count, scopedDoc, onClearScope, onMenu, onReset
         ) : (
           <p className="truncate text-meta text-muted">
             Recherche sur <span className="font-[650] text-ink-soft">l’ensemble du corpus</span>
-            {count > 0 && <span className="font-mono"> · {count} articles</span>}
+            {count > 0 && (
+              <span className="font-mono">
+                {' '}
+                · {count} {count > 1 ? DOMAINE.unitePluriel : DOMAINE.unite}
+              </span>
+            )}
           </p>
         )}
       </div>

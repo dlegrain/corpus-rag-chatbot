@@ -6,13 +6,14 @@ import type { useDocuments } from '../hooks/useDocuments'
 
 type Props = {
   library: ReturnType<typeof useDocuments>
-  scope: string | null
-  onScope: (id: string | null) => void
+  scope: string[]
+  onToggle: (id: string) => void
+  onClear: () => void
   open: boolean
   onClose: () => void
 }
 
-export default function Sidebar({ library, scope, onScope, open, onClose }: Props) {
+export default function Sidebar({ library, scope, onToggle, onClear, open, onClose }: Props) {
   const input = useRef<HTMLInputElement>(null)
   const total = library.docs.reduce((s, d) => s + (d.n_chunks || 0), 0)
 
@@ -77,7 +78,8 @@ export default function Sidebar({ library, scope, onScope, open, onClose }: Prop
             docs={library.docs}
             loading={library.loading}
             scope={scope}
-            onScope={onScope}
+            onToggle={onToggle}
+            onClear={onClear}
             onRemove={library.remove}
           />
           <BrandCard />

@@ -8,7 +8,15 @@ import { useChat } from './hooks/useChat'
 
 export default function App() {
   const library = useDocuments()
-  const [scope, setScope] = useState<string | null>(null)
+  /**
+   * Les documents cochés ; vide = tout le corpus. Volontairement pas conservé
+   * d'une visite à l'autre : un périmètre oublié qui survit en silence est le
+   * piège à éviter — chaque visite repart sur tout le corpus.
+   */
+  const [scope, setScope] = useState<string[]>([])
+  const toggleScope = (id: string) =>
+    setScope((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
+  const clearScope = () => setScope([])
   const chat = useChat(scope)
   const [drawer, setDrawer] = useState(false)
   const [dragging, setDragging] = useState(false)
@@ -45,14 +53,16 @@ export default function App() {
     }
   }, [library.upload])
 
-  const scopedDoc = library.docs.find((d) => d.id === scope) ?? null
+  // Un document retiré du corpus entre-temps disparaît de la sélection de lui-même.
+  const scopedDocs = library.docs.filter((d) => scope.includes(d.id))
 
   return (
     <div className="flex h-full overflow-hidden">
       <Sidebar
         library={library}
         scope={scope}
-        onScope={setScope}
+        onToggle={toggleScope}
+        onClear={clearScope}
         open={drawer}
         onClose={() => setDrawer(false)}
       />
@@ -60,13 +70,13 @@ export default function App() {
       <main className="flex min-w-0 flex-1 flex-col">
         <TopBar
           count={library.docs.length}
-          scopedDoc={scopedDoc}
-          onClearScope={() => setScope(null)}
+          scopedDocs={scopedDocs}
+          onClearScope={clearScope}
           onMenu={() => setDrawer(true)}
           onReset={chat.reset}
           hasMessages={chat.messages.length > 0}
         />
-        <Chat chat={chat} docs={library.docs} scopedDoc={scopedDoc} />
+        <Chat chat={chat} docs={library.docs} scopedDocs={scopedDocs} />
       </main>
 
       {dragging && <DropOverlay />}

@@ -49,6 +49,8 @@ export function buildSystemPrompt(input: {
   fresh: Numbered[]
   carried: Numbered[]
   catalog: string
+  /** Les documents auxquels l'utilisateur a limité la recherche, déjà mis en forme ; vide si tout le corpus. */
+  restreint?: string
   hasDocs: boolean
 }): string {
   if (!input.hasDocs) return EMPTY
@@ -60,6 +62,16 @@ Composition complète du corpus consultable :
 
 ${input.catalog}`,
   ]
+
+  if (input.restreint) {
+    sections.push(`# Périmètre choisi par l'utilisateur
+
+La recherche a été limitée, à sa demande, à :
+
+${input.restreint}
+
+Les autres documents de la bibliothèque n'ont pas été consultés pour cette question. Si la réponse pourrait s'y trouver, dis-le, plutôt que de conclure que le corpus ne la contient pas.`)
+  }
 
   if (input.fresh.length > 0) {
     sections.push(`# Extraits retrouvés pour la question courante

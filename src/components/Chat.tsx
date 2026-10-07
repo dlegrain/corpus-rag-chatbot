@@ -4,14 +4,22 @@ import Composer from './Composer'
 import EmptyState from './EmptyState'
 import type { useChat } from '../hooks/useChat'
 import type { Doc } from '../lib/types'
+import { DOMAINE } from '../../shared/domaine.js'
 
 type Props = {
   chat: ReturnType<typeof useChat>
   docs: Doc[]
-  scopedDoc: Doc | null
+  /** Les documents cochés ; vide = tout le corpus. */
+  scopedDocs: Doc[]
 }
 
-export default function Chat({ chat, docs, scopedDoc }: Props) {
+/** « Question sur Alden 2022… » pour un seul document, « Question sur 2 articles… » au-delà. */
+const invite = (scopedDocs: Doc[]) =>
+  scopedDocs.length === 1
+    ? `Question sur ${scopedDocs[0].authors ?? scopedDocs[0].title}…`
+    : `Question sur ${scopedDocs.length} ${DOMAINE.unitePluriel} sélectionnés…`
+
+export default function Chat({ chat, docs, scopedDocs }: Props) {
   const bottom = useRef<HTMLDivElement>(null)
 
   /**
@@ -38,7 +46,7 @@ export default function Chat({ chat, docs, scopedDoc }: Props) {
       <div className="relative min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-3xl px-5 py-8 lg:px-8">
           {empty ? (
-            <EmptyState docs={docs} scopedDoc={scopedDoc} onPick={chat.send} />
+            <EmptyState docs={docs} scopedDocs={scopedDocs} onPick={chat.send} />
           ) : (
             <div className="flex flex-col gap-8">
               {chat.messages.map((m, i) => (
@@ -64,8 +72,8 @@ export default function Chat({ chat, docs, scopedDoc }: Props) {
         placeholder={
           docs.length === 0
             ? 'Déposez d’abord un PDF pour interroger le corpus…'
-            : scopedDoc
-              ? `Question sur ${scopedDoc.authors ?? scopedDoc.title}…`
+            : scopedDocs.length > 0
+              ? invite(scopedDocs)
               : 'Posez votre question au corpus…'
         }
       />

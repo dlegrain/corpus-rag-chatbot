@@ -29,20 +29,22 @@ export function memoire(messages) {
   return { known, cited }
 }
 
-export async function demander(messages, question) {
+/** `docIds` : les documents cochés, comme dans la colonne de gauche ; vide = tout le corpus. */
+export async function demander(messages, question, docIds = []) {
   const history = [...messages, { role: 'user', content: question }]
   const res = await fetch(`${BASE}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       messages: history.map((m) => ({ role: m.role, content: m.content })),
-      docId: null,
+      docIds,
       ...memoire(messages),
     }),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status} — ${(await res.text()).slice(0, 200)}`)
 
   let plan = [],
+    perimetre = [],
     sources = [],
     content = '',
     erreur = null,
@@ -59,11 +61,11 @@ export async function demander(messages, question) {
       const line = frame.trim()
       if (!line.startsWith('data:')) continue
       const evt = JSON.parse(line.slice(5))
-      if (evt.type === 'plan') plan = evt.queries
+      if (evt.type === 'plan') ((plan = evt.queries), (perimetre = evt.perimetre ?? []))
       else if (evt.type === 'sources') sources = evt.sources
       else if (evt.type === 'delta') content += evt.text
       else if (evt.type === 'error') erreur = evt.message
     }
   }
-  return { messages: [...history, { role: 'assistant', content, sources }], plan, sources, erreur }
+  return { messages: [...history, { role: 'assistant', content, sources }], plan, perimetre, sources, erreur }
 }

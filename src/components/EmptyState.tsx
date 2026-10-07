@@ -5,11 +5,12 @@ const SUGGESTIONS = DOMAINE.suggestions
 
 type Props = {
   docs: Doc[]
-  scopedDoc: Doc | null
+  /** Les documents cochés ; vide = tout le corpus. */
+  scopedDocs: Doc[]
   onPick: (q: string) => void
 }
 
-export default function EmptyState({ docs, scopedDoc, onPick }: Props) {
+export default function EmptyState({ docs, scopedDocs, onPick }: Props) {
   const years = docs.map((d) => d.year).filter(Boolean) as number[]
   const span = years.length ? `${Math.min(...years)}–${Math.max(...years)}` : null
 
@@ -27,10 +28,18 @@ export default function EmptyState({ docs, scopedDoc, onPick }: Props) {
             Le corpus est vide. Glissez vos documents au format PDF n’importe où sur la page : ils
             sont lus, découpés en passages et indexés en quelques secondes.
           </>
-        ) : scopedDoc ? (
+        ) : scopedDocs.length === 1 ? (
           <>
-            Vous interrogez uniquement <strong>{scopedDoc.title}</strong>. Les réponses citent la
+            Vous interrogez uniquement <strong>{scopedDocs[0].title}</strong>. Les réponses citent la
             page exacte de chaque passage utilisé.
+          </>
+        ) : scopedDocs.length > 1 ? (
+          <>
+            Vous interrogez uniquement{' '}
+            <strong>
+              {scopedDocs.length} {DOMAINE.unitePluriel}
+            </strong>{' '}
+            : {scopedDocs.map((d) => d.title).join(' · ')}. Les autres ne sont pas consultés.
           </>
         ) : (
           <>

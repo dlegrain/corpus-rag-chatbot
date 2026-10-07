@@ -38,8 +38,12 @@ const CARRY_FLOOR = 0.45
  */
 export async function search(
   queries: SearchQuery[],
+  /** Les documents cochés par l'utilisateur ; vide = tout le corpus. */
+  perimetre: string[] = [],
 ): Promise<{ passages: Passage[]; probe: number[] | null }> {
   if (queries.length === 0) return { passages: [], probe: null }
+  // Un document visé par le plan mais hors du périmètre choisi : la requête redevient libre, dans le périmètre.
+  if (perimetre.length > 0) queries = queries.map((q) => (q.doc && !perimetre.includes(q.doc) ? { ...q, doc: null } : q))
 
   const count = BUDGET[Math.min(queries.length, BUDGET.length - 1)]
   const embeddings = await Promise.all(queries.map((q) => embedQuery(q.q)))
@@ -54,13 +58,23 @@ export async function search(
 
   const runs = await Promise.all(
     queries.map(async (q, i) => {
-      const { data, error } = await db().rpc('match_sci_chunks', {
-        query_embedding: embeddings[i],
-        match_count: q.doc ? count : count * SUR_ECHANTILLON,
-        filter_doc: q.doc ?? null,
-      })
-      if (error) throw new Error(error.message)
-      const rows = (data ?? []) as Passage[]
+      const voulu = q.doc ? count : count * SUR_ECHANTILLON
+      // Une recherche par document du périmètre, puis fusion — plutôt que
+      // chercher partout et écarter : écarter après coup viderait le résultat
+      // quand un document hors périmètre domine.
+      const cibles: (string | null)[] = q.doc ? [q.doc] : perimetre.length > 0 ? perimetre : [null]
+      const parDoc = await Promise.all(
+        cibles.map(async (doc) => {
+          const { data, error } = await db().rpc('match_sci_chunks', {
+            query_embedding: embeddings[i],
+            match_count: voulu,
+            filter_doc: doc,
+          })
+          if (error) throw new Error(error.message)
+          return (data ?? []) as Passage[]
+        }),
+      )
+      const rows = parDoc.flat().sort((a, b) => b.similarity - a.similarity).slice(0, voulu)
       // Une requête qui vise un document ne se diversifie pas, et ses passages
       // sont épinglés : c'est le mécanisme même de la comparaison, il faut de
       // la profondeur sur cet article et le plafond global ne doit pas l'éroder.
@@ -136,6 +150,8 @@ export async function recall(
   ids: number[],
   probe: number[] | null,
   fresh: Passage[] = [],
+  /** Les documents cochés par l'utilisateur ; vide = tout le corpus. */
+  perimetre: string[] = [],
 ): Promise<Passage[]> {
   if (ids.length === 0) return []
   const { data, error } = await db().rpc('sci_chunks_by_ids', {
@@ -144,7 +160,10 @@ export async function recall(
   })
   if (error) throw new Error(error.message)
 
-  const found = (data ?? []) as Passage[]
+  // Un passage cité plus haut mais hors du périmètre choisi n'est pas rappelé.
+  const found = ((data ?? []) as Passage[]).filter(
+    (p) => perimetre.length === 0 || perimetre.includes(p.document_id),
+  )
   if (!probe) return merge(found).slice(0, CARRY_MAX)
 
   const plancher = Math.max(CARRY_FLOOR, mediane(fresh.map((p) => p.similarity)))
