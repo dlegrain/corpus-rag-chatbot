@@ -40,7 +40,7 @@ voir [Adapter à un autre corpus](#adapter-à-un-autre-corpus).
 | **Refuser d'inventer** | Le prompt système interdit de sortir des extraits fournis. En test, le modèle signale spontanément qu'un chiffre est illisible dans l'extrait plutôt que de le combler. |
 | **Accepter de nouveaux documents** | Glisser-déposer n'importe où sur la page. Progression réelle affichée, déduplication par nom de fichier, suppression avec cascade. |
 | **Lire les métadonnées dans l'article** | Le titre, les auteurs, l'année et la revue sont extraits de l'en-tête du PDF, pas du nom de fichier. Un fichier mal nommé produit quand même une citation propre. |
-| **Restreindre à un document** | Un clic dans la barre latérale limite la recherche à un seul article. |
+| **Restreindre à un ou plusieurs documents** | Cochez des documents dans la barre latérale : la recherche ne porte que sur eux. Rien de coché = tout le corpus. Le périmètre reste affiché en haut, et n'est pas conservé d'une visite à l'autre. |
 | **Streamer la réponse** | SSE de bout en bout : le texte s'affiche au fil de la génération, les sources arrivent avant même le premier mot. |
 
 <table>
@@ -564,7 +564,7 @@ Deux mesures qui ont orienté le travail plus que n'importe quelle intuition :
 
 | Route | Méthode | Corps / paramètres | Retour |
 |---|---|---|---|
-| `/api/chat` | `POST` | `{ messages: [{role, content}], docId?: string }` | Flux SSE (`sources`, `delta`, `done`, `error`) |
+| `/api/chat` | `POST` | `{ messages: [{role, content}], docIds?: string[] }` | Flux SSE (`sources`, `delta`, `done`, `error`) |
 | `/api/ingest` | `POST` | `{ op: "start" \| "chunks" \| "finish", docId, … }` | JSON |
 | `/api/documents` | `GET` | — | `{ documents: [...] }` |
 | `/api/documents` | `DELETE` | `?id=<uuid>` | `{ deleted: id }` |
