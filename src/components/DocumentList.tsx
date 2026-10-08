@@ -95,10 +95,12 @@ export default function DocumentList({ docs, loading, scope, onToggle, onClear, 
                         <span className="shrink-0 font-mono text-etiquette text-muted">{doc.year}</span>
                       )}
                     </span>
-                    <span className="mt-0.5 block truncate text-meta text-muted">
-                      {doc.journal ?? doc.filename}
+                    {/* Le titre parle davantage que la revue ou le nom de fichier (souvent absents ou opaques). */}
+                    <span className="mt-0.5 line-clamp-2 text-meta text-muted" title={doc.title}>
+                      {doc.title || doc.filename}
                     </span>
                     <span className="mt-1 flex items-center gap-2 text-etiquette text-muted">
+                      {doc.journal ? <span className="truncate">{doc.journal}</span> : null}
                       <span className="font-mono">{doc.n_chunks} passages</span>
                       {doc.n_pages ? <span className="font-mono">{doc.n_pages} p.</span> : null}
                       {doc.status !== 'ready' && (

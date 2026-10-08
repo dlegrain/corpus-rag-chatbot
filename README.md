@@ -4,9 +4,11 @@ Un assistant qui répond en langage naturel à des questions sur une base docume
 citant systématiquement la source et la page**. N'importe qui peut déposer un nouveau document sur
 la page : il est lu, découpé, vectorisé et rejoint la base consultable en quelques secondes.
 
-Le corpus de démonstration porte sur la **vaccination en pharmacie d'officine** (10 articles
-scientifiques, 2022–2025), mais le code est écrit pour être re-pointé sur n'importe quel corpus —
-voir [Adapter à un autre corpus](#adapter-à-un-autre-corpus).
+Le corpus de démonstration s'intitule **« Travailler avec l'IA, ce que dit la recherche »** :
+13 articles de 2026 sur la collaboration entre humains et IA (et quelques risques des agents au
+travail), tous sous licence CC BY ou CC BY-SA, interrogés par des professionnels qui ne sont pas
+chercheurs. Le code est écrit pour être re-pointé sur n'importe quel corpus : voir
+[Adapter à un autre corpus](#adapter-à-un-autre-corpus).
 
 **Démo en ligne : https://corpus-scientifique.netlify.app**
 
@@ -41,6 +43,7 @@ voir [Adapter à un autre corpus](#adapter-à-un-autre-corpus).
 | **Accepter de nouveaux documents** | Glisser-déposer n'importe où sur la page. Progression réelle affichée, déduplication par nom de fichier, suppression avec cascade. |
 | **Lire les métadonnées dans l'article** | Le titre, les auteurs, l'année et la revue sont extraits de l'en-tête du PDF, pas du nom de fichier. Un fichier mal nommé produit quand même une citation propre. |
 | **Restreindre à un ou plusieurs documents** | Cochez des documents dans la barre latérale : la recherche ne porte que sur eux. Rien de coché = tout le corpus. Le périmètre reste affiché en haut, et n'est pas conservé d'une visite à l'autre. |
+| **Ouvrir la page citée** | Un clic sur « voir la page » ouvre le PDF d'origine à la page de la source, passage surligné, et permet de feuilleter. Le PDF est lu directement dans le stockage par un lien signé d'une heure. Réservé aux PDF déposés par `scripts/upload-pdfs.mjs` (ceux qu'on a le droit de rediffuser) : un document ajouté par glisser-déposer garde l'affichage de l'extrait. |
 | **Streamer la réponse** | SSE de bout en bout : le texte s'affiche au fil de la génération, les sources arrivent avant même le premier mot. |
 
 <table>
@@ -147,7 +150,17 @@ npm install
 
 Ouvrez le **SQL Editor** de votre projet Supabase et exécutez
 [`supabase/schema.sql`](supabase/schema.sql) tel quel. Il crée l'extension `vector`, les deux
-tables, l'index HNSW, la fonction de recherche et active la RLS.
+tables, l'index HNSW, les fonctions de recherche et active la RLS.
+
+**Plusieurs corpus dans une même base** : les noms sont préfixés (`sci_documents`,
+`match_sci_chunks`…). Pour un second corpus, remplacez `sci` par un autre préfixe dans le
+schéma, puis posez `CORPUS_PREFIX=<préfixe>` dans l'environnement du déploiement concerné. Sans
+cette variable, c'est `sci`.
+
+**Ouvrir la page citée (facultatif)** : créez un bucket Storage **privé** nommé
+`<préfixe>-pdfs` (par exemple `sci-pdfs`), puis déposez-y les PDF d'origine avec
+`node --env-file=.env scripts/upload-pdfs.mjs --dir pdfs`. Sans bucket, l'interface affiche
+simplement l'extrait.
 
 ### 3. Renseigner les variables d'environnement
 
@@ -582,14 +595,15 @@ Les routes sont déclarées dans chaque function via `export const config = { pa
 │   ├── hooks/                  useDocuments (corpus + upload), useChat (SSE + mémoire)
 │   └── lib/                    pdf.ts (extraction), api.ts, types.ts, citations.ts
 ├── netlify/
-│   ├── functions/              chat.mts · ingest.mts · documents.mts  → routes /api/*
+│   ├── functions/              chat.mts · ingest.mts · documents.mts · pdf.mts  → routes /api/*
 │   └── lib/                    embed · supabase · metadata · history · catalog
 │                               plan (planificateur) · retrieve (recherche) · prompt
 ├── shared/                     (navigateur + functions + scripts)
 │   ├── domaine.js              ★ LE SUJET DU CHATBOT — le seul fichier à changer
 │   ├── domaine.exemple.js      Gabarit commenté, à copier sur le précédent
 │   └── chunk.js · meta.js      Découpage et métadonnées
-├── scripts/seed-pdfs.mjs       Indexation en masse d'un dossier via l'API
+├── scripts/seed-pdfs.mjs       Indexation en masse d'un dossier via l'API (--batch 6 si lent)
+├── scripts/upload-pdfs.mjs     Dépôt des PDF d'origine pour l'ouverture à la page citée
 ├── scripts/scenarios.mjs       Les conversations du banc d'essai — à adapter
 ├── scripts/test-chat.mjs       Banc d'essai des conversations multi-tours
 ├── scripts/juge.mjs            Comparaison A/B aveugle de deux jeux de réponses

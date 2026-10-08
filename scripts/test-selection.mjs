@@ -8,8 +8,9 @@
  *   BASE=https://votre-site.netlify.app node scripts/test-selection.mjs
  */
 import { BASE, demander, gras, gris, rouge, vert } from './lib/client-chat.mjs'
+import { DOMAINE } from '../shared/domaine.js'
 
-const QUESTION = process.argv[2] ?? 'Quels effets de la vaccination sont rapportés, et avec quelle ampleur ?'
+const QUESTION = process.argv[2] ?? DOMAINE.suggestions[0]
 
 let ok = 0
 let ko = 0

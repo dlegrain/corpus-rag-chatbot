@@ -1,5 +1,5 @@
 import type { Config } from '@netlify/functions'
-import { db, json } from '../lib/supabase.js'
+import { db, T, json } from '../lib/supabase.js'
 import { embedBatch } from '../lib/embed.js'
 import { extractMeta } from '../lib/metadata.js'
 
@@ -32,14 +32,14 @@ export default async (req: Request) => {
 async function start(docId: string, body: any) {
   const filename: string = body.filename ?? 'document.pdf'
   const existing = await db()
-    .from('sci_documents')
+    .from(T.documents)
     .select('id')
     .eq('filename', filename)
     .maybeSingle()
   if (existing.data) return json({ duplicate: true, id: existing.data.id })
 
   const meta = await extractMeta(filename, body.sample ?? '')
-  const { error } = await db().from('sci_documents').insert({
+  const { error } = await db().from(T.documents).insert({
     id: docId,
     filename,
     title: meta.title,
@@ -63,18 +63,18 @@ async function chunks(docId: string, list: Chunk[]) {
     content: c.content,
     embedding: vectors[i],
   }))
-  const { error } = await db().from('sci_chunks').insert(rows)
+  const { error } = await db().from(T.chunks).insert(rows)
   if (error) throw new Error(error.message)
   return json({ inserted: rows.length })
 }
 
 async function finish(docId: string) {
   const { count } = await db()
-    .from('sci_chunks')
+    .from(T.chunks)
     .select('id', { count: 'exact', head: true })
     .eq('document_id', docId)
   const { data, error } = await db()
-    .from('sci_documents')
+    .from(T.documents)
     .update({ n_chunks: count ?? 0, status: 'ready' })
     .eq('id', docId)
     .select()

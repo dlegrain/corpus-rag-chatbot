@@ -9,6 +9,8 @@ export type Doc = {
   n_chunks: number
   status: string
   created_at: string
+  /** Le PDF d'origine est en stockage : la source s'ouvre à la page citée. */
+  has_pdf?: boolean
 }
 
 export type Source = {

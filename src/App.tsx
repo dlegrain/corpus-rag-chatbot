@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import Chat from './components/Chat'
 import TopBar from './components/TopBar'
 import DropOverlay from './components/DropOverlay'
 import { useDocuments } from './hooks/useDocuments'
 import { useChat } from './hooks/useChat'
+import { PdfDocs } from './lib/pdfDocs'
 
 export default function App() {
   const library = useDocuments()
@@ -55,8 +56,10 @@ export default function App() {
 
   // Un document retiré du corpus entre-temps disparaît de la sélection de lui-même.
   const scopedDocs = library.docs.filter((d) => scope.includes(d.id))
+  const avecPdf = useMemo(() => new Set(library.docs.filter((d) => d.has_pdf).map((d) => d.id)), [library.docs])
 
   return (
+    <PdfDocs.Provider value={avecPdf}>
     <div className="flex h-full overflow-hidden">
       <Sidebar
         library={library}
@@ -81,5 +84,6 @@ export default function App() {
 
       {dragging && <DropOverlay />}
     </div>
+    </PdfDocs.Provider>
   )
 }

@@ -1,4 +1,4 @@
-import { db } from './supabase.js'
+import { db, T } from './supabase.js'
 
 export type CatalogEntry = {
   id: string
@@ -19,7 +19,7 @@ export type CatalogEntry = {
  */
 export async function fetchCatalog(): Promise<CatalogEntry[]> {
   const { data, error } = await db()
-    .from('sci_documents')
+    .from(T.documents)
     .select('id, title, authors, year, journal')
     .order('year', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: true })

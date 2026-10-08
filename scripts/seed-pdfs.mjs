@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Indexe les PDF du dossier ./pdfs via l'API du site (même chemin de code que le drag & drop).
-//   node scripts/seed-pdfs.mjs [--url https://mon-site.netlify.app] [--dir pdfs]
+//   node scripts/seed-pdfs.mjs [--url https://mon-site.netlify.app] [--dir pdfs] [--batch 12]
 import { readdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'
@@ -11,7 +11,7 @@ const args = Object.fromEntries(
 )
 const BASE = (args.url ?? 'http://localhost:8888').replace(/\/$/, '')
 const DIR = resolve(args.dir ?? 'pdfs')
-const BATCH = 12
+const BATCH = Number(args.batch ?? 12) // --batch 6 si les lots expirent (délai de 30 s en local)
 
 async function extractPages(path) {
   const data = new Uint8Array(await readFile(path))

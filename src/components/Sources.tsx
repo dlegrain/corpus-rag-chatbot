@@ -1,10 +1,14 @@
-import { useState } from 'react'
+import { useContext, useState } from 'react'
+import PdfPage from './PdfPage'
+import { PdfDocs } from '../lib/pdfDocs'
 import type { Source } from '../lib/types'
 
 type Props = { sources: Source[]; cited: Set<number>; anchor: string }
 
 export default function Sources({ sources, cited, anchor }: Props) {
   const [openAll, setOpenAll] = useState(false)
+  const [ouverte, setOuverte] = useState<Source | null>(null)
+  const avecPdf = useContext(PdfDocs)
   const used = sources.filter((s) => cited.has(s.n))
   const shown = openAll ? sources : used.length > 0 ? used : sources.slice(0, 3)
 
@@ -39,7 +43,20 @@ export default function Sources({ sources, cited, anchor }: Props) {
                 {s.authors ?? s.title}
                 {s.year && <span className="font-normal text-ink-soft"> · {s.year}</span>}
                 {s.journal && <span className="font-normal text-ink-soft"> · {s.journal}</span>}
-                {s.page && <span className="font-mono font-normal text-ink-soft"> · p. {s.page}</span>}
+                {s.page && avecPdf.has(s.documentId) ? (
+                  <>
+                    <span className="font-normal text-ink-soft"> · </span>
+                    <button
+                      onClick={() => setOuverte(s)}
+                      title="Ouvrir le document à cette page"
+                      className="rounded-(--radius-pill) bg-accent-soft px-2 py-px font-mono text-etiquette font-[650] text-accent transition hover:bg-accent hover:text-accent-ink"
+                    >
+                      p. {s.page} · voir la page
+                    </button>
+                  </>
+                ) : (
+                  s.page && <span className="font-mono font-normal text-ink-soft"> · p. {s.page}</span>
+                )}
               </p>
               <p className="mt-0.5 line-clamp-2 text-meta leading-normal text-ink-soft group-hover:line-clamp-none">
                 {s.excerpt}
@@ -48,6 +65,16 @@ export default function Sources({ sources, cited, anchor }: Props) {
           </li>
         ))}
       </ol>
+
+      {ouverte && ouverte.page && (
+        <PdfPage
+          documentId={ouverte.documentId}
+          title={ouverte.title}
+          page={ouverte.page}
+          excerpt={ouverte.excerpt}
+          onClose={() => setOuverte(null)}
+        />
+      )}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { db } from './supabase.js'
+import { db, T } from './supabase.js'
 import { embedQuery } from './embed.js'
 import type { Passage } from './prompt.js'
 import type { SearchQuery } from './plan.js'
@@ -65,7 +65,7 @@ export async function search(
       const cibles: (string | null)[] = q.doc ? [q.doc] : perimetre.length > 0 ? perimetre : [null]
       const parDoc = await Promise.all(
         cibles.map(async (doc) => {
-          const { data, error } = await db().rpc('match_sci_chunks', {
+          const { data, error } = await db().rpc(T.match, {
             query_embedding: embeddings[i],
             match_count: voulu,
             filter_doc: doc,
@@ -154,7 +154,7 @@ export async function recall(
   perimetre: string[] = [],
 ): Promise<Passage[]> {
   if (ids.length === 0) return []
-  const { data, error } = await db().rpc('sci_chunks_by_ids', {
+  const { data, error } = await db().rpc(T.byIds, {
     ids,
     query_embedding: probe ?? new Array(768).fill(0),
   })

@@ -12,7 +12,8 @@ type Props = {
 
 export default function EmptyState({ docs, scopedDocs, onPick }: Props) {
   const years = docs.map((d) => d.year).filter(Boolean) as number[]
-  const span = years.length ? `${Math.min(...years)}–${Math.max(...years)}` : null
+  const [debut, fin] = [Math.min(...years), Math.max(...years)]
+  const span = years.length ? (debut === fin ? `${debut}` : `${debut}–${fin}`) : null
 
   return (
     <div className="pt-6 pb-4 lg:pt-14">
