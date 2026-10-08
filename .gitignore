@@ -13,3 +13,6 @@ pdfs/
 
 # Fichiers temporaires du CLI Supabase
 supabase/.temp/
+
+# Généré par netlify dev (outillage des edge functions), non utilisé par le build
+deno.lock
