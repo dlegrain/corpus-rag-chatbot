@@ -393,11 +393,17 @@ Le nettoyage supprime les espaces insécables et **recolle les césures de fin d
 
 Les deux premières pages sont envoyées à `gemini-3.5-flash-lite` avec un `responseSchema` JSON
 strict et une réflexion réduite au minimum (`thinkingLevel: minimal`, température par défaut comme
-Google le recommande pour les modèles 3.x). Modèle réglable par `GEMINI_META_MODEL` (et
-`GEMINI_META_THINKING` si le modèle n'accepte pas `minimal`, ex. `gemini-3.8-flash` → `low`). Les
-jetons de réflexion sont décomptés de `maxOutputTokens` : la limite est volontairement large (2048)
-pour que le JSON ne soit jamais tronqué. Le nom de fichier ne sert que de **repli**
-(`shared/meta.js` sait lire le motif `Auteurs ANNÉE (Revue).pdf`) — et tout échec de l'appel (HTTP,
+Google le recommande pour les modèles 3.x). Si ces deux pages donnent moins de 200 caractères — la
+couverture d'un livre —, `shared/sample.js` parcourt les pages liminaires (page de titre intérieure,
+mentions légales…) et en prend le début de chacune, jusqu'à 6 000 caractères.
+
+Modèle réglable par `GEMINI_META_MODEL` (et `GEMINI_META_THINKING` si le modèle n'accepte pas
+`minimal`, ex. `gemini-3.8-flash` → `low`). Les jetons de réflexion sont décomptés de
+`maxOutputTokens` : la limite est volontairement large (2048) pour que le JSON ne soit jamais tronqué.
+
+Le nom de fichier ne sert que de **repli** : `shared/meta.js` lit le motif
+`Auteurs ANNÉE (Revue).pdf`, ignore les suffixes de copie (« (1) », « - copie »…) et, à défaut, ne
+garde que le titre et l'année, sans inventer d'auteur ni de revue. Tout échec de l'appel (HTTP,
 réponse vide, JSON illisible) est journalisé (`[metadata] …` dans les journaux de la fonction
 `ingest`), pour qu'un modèle retiré ne passe plus inaperçu.
 

@@ -1,4 +1,5 @@
 import { chunkPages } from '../../shared/chunk.js'
+import { buildSample } from '../../shared/sample.js'
 import { extractPages } from './pdf'
 import type { Doc, Msg, Source, UploadState } from './types'
 
@@ -46,7 +47,7 @@ export async function ingestFile(
     docId,
     filename: file.name,
     nPages: pages.length,
-    sample: pages.slice(0, 2).join('\n').slice(0, 6000),
+    sample: buildSample(pages),
   })
   if (started.duplicate) {
     onState({ phase: 'doublon', progress: 100 })

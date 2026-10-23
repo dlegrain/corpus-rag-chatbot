@@ -5,6 +5,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { chunkPages } from '../shared/chunk.js'
+import { buildSample } from '../shared/sample.js'
 
 const args = Object.fromEntries(
   process.argv.slice(2).flatMap((a, i, all) => (a.startsWith('--') ? [[a.slice(2), all[i + 1]]] : [])),
@@ -69,7 +70,7 @@ for (const [i, filename] of files.entries()) {
       docId,
       filename,
       nPages: pages.length,
-      sample: pages.slice(0, 2).join('\n').slice(0, 6000),
+      sample: buildSample(pages),
     })
     if (started.duplicate) {
       console.log(`${label} — déjà indexé, ignoré`)
