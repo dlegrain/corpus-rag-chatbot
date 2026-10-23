@@ -122,7 +122,7 @@ mondes — navigateur (Vite), functions (esbuild), scripts Node.
 | Backend | Netlify Functions (`.mts`) | Même déploiement que le front, routes `/api/*` déclarées dans le fichier de la function. |
 | Vecteurs | Supabase + pgvector, index **HNSW** cosinus | HNSW plutôt qu'IVFFlat : pas de phase d'entraînement, correct dès le premier document inséré. |
 | Embeddings | `gemini-embedding-001`, **768 dimensions** | Gère l'asymétrie question/passage (voir plus bas). 768 dims au lieu de 3072 : index plus léger, qualité indistinguable à cette échelle. |
-| Métadonnées | `gemini-2.5-flash-lite`, schéma JSON contraint | Rapide et quasi gratuit pour un travail d'extraction structurée. |
+| Métadonnées | `gemini-3.5-flash-lite` (réglable : `GEMINI_META_MODEL`), schéma JSON contraint | Rapide et quasi gratuit pour un travail d'extraction structurée. |
 | Génération | `claude-opus-5`, effort `low`, streaming | La synthèse d'articles demande de la finesse — distinguer un résultat établi d'une limite reconnue par les auteurs. L'effort bas garde la latence acceptable pour un chat. |
 | PDF | `pdfjs-dist` v6 | Fonctionne à l'identique dans le navigateur (worker) et sous Node (build `legacy`). |
 
@@ -391,9 +391,15 @@ Le nettoyage supprime les espaces insécables et **recolle les césures de fin d
 
 ### 3. Métadonnées — `netlify/lib/metadata.ts`
 
-Les deux premières pages sont envoyées à `gemini-2.5-flash-lite` avec un `responseSchema` JSON
-strict et `temperature: 0`. Le nom de fichier ne sert que de **repli**
-(`shared/meta.js` sait lire le motif `Auteurs ANNÉE (Revue).pdf`).
+Les deux premières pages sont envoyées à `gemini-3.5-flash-lite` avec un `responseSchema` JSON
+strict et une réflexion réduite au minimum (`thinkingLevel: minimal`, température par défaut comme
+Google le recommande pour les modèles 3.x). Modèle réglable par `GEMINI_META_MODEL` (et
+`GEMINI_META_THINKING` si le modèle n'accepte pas `minimal`, ex. `gemini-3.8-flash` → `low`). Les
+jetons de réflexion sont décomptés de `maxOutputTokens` : la limite est volontairement large (2048)
+pour que le JSON ne soit jamais tronqué. Le nom de fichier ne sert que de **repli**
+(`shared/meta.js` sait lire le motif `Auteurs ANNÉE (Revue).pdf`) — et tout échec de l'appel (HTTP,
+réponse vide, JSON illisible) est journalisé (`[metadata] …` dans les journaux de la fonction
+`ingest`), pour qu'un modèle retiré ne passe plus inaperçu.
 
 Validé sur un cas volontairement piégeux : un PDF renommé
 `TEST Nouveau depot 2026 (Journal Test).pdf` a été correctement identifié comme
@@ -827,7 +833,7 @@ ouvrir et parser le PDF — tourne dans le navigateur de l'utilisateur, sur son 
 |---|---|
 | Parsing du PDF | **zéro** — pdf.js s'exécute dans le navigateur |
 | Embarquer tout le corpus (12 articles, 419 passages) | ~122 000 jetons, soit **moins de deux centimes** |
-| Métadonnées d'un nouveau PDF | négligeable — un appel `gemini-2.5-flash-lite` sur 6 000 caractères |
+| Métadonnées d'un nouveau PDF | négligeable — un appel `gemini-3.5-flash-lite` sur 6 000 caractères |
 | Le plan de recherche | négligeable — quelques centaines de jetons sur Claude Haiku 4.5 |
 | **Une question** | **~0,07 à 0,08 $** — 9 000 à 10 000 jetons d'entrée (24 passages) + ~800 de sortie sur Claude Opus 5 |
 | Stockage Supabase | négligeable — 419 vecteurs de 768 dims ≈ 1,3 Mo |
