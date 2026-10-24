@@ -29,6 +29,7 @@ chercheurs. Le code est écrit pour être re-pointé sur n'importe quel corpus :
 - [API](#api)
 - [Structure du dépôt](#structure-du-dépôt)
 - [Adapter à un autre corpus](#adapter-à-un-autre-corpus)
+- [Surveillance](#surveillance)
 - [Coûts](#coûts)
 - [Limites connues](#limites-connues)
 
@@ -842,6 +843,63 @@ modification. `mammoth` pour le `.docx`, `xlsx` pour les tableurs.
   de la qualité de rappel.
 - **Le champ de localisation dans le chunk** (`page`, ou article, ou horodatage). C'est la seule
   chose qui rend une réponse vérifiable — et donc utilisable.
+
+---
+
+## Surveillance
+
+Trois filets, aucun payant. Ils se coupent d'eux-mêmes si leur variable est absente : un clone
+sans `SENTRY_DSN` ni `SANTE_SECRET` fonctionne exactement pareil.
+
+**1. Sentry, avec envoi garanti** — `netlify/lib/sentry.ts`, variable `SENTRY_DSN`.
+Une function Netlify est gelée dès qu'elle a rendu sa réponse : un `captureException` laissé en
+file n'est donc jamais envoyé. Chaque function est enveloppée par `avecSentry`, et toute capture
+est **attendue** (`await vider()`, soit `Sentry.flush`) avant de répondre ou de fermer le flux
+SSE. Rien du contenu ne part : ni question, ni passage, ni nom de fichier — seulement route,
+étape, fournisseur, modèle et statut HTTP. Un appel portant l'en-tête `x-origine: test` est
+étiqueté `origine: test`. Preuve hors ligne (faux Sentry, fausse base, faux LLM) :
+`npm run test:sentry`.
+
+**2. Santé profonde** — `GET /api/sante?cle=<SANTE_SECRET>` (`netlify/functions/sante.mts`,
+`netlify/lib/sante.ts`, liste des vérifications dans `netlify/lib/sante-site.ts`).
+Une page qui répond 200 ne prouve pas que l'IA répond. Cette route teste les vraies dépendances,
+avec les mêmes constantes que le code qui s'en sert et uniquement des points d'accès gratuits :
+`countTokens` Gemini sur le modèle d'embeddings et sur celui des métadonnées, `count_tokens`
+Claude sur le modèle de rédaction et sur celui du planificateur, une ligne de la table des
+documents, une liste du bucket des PDF. Réponse : 200 si tout passe, 503 avec le motif court de
+chaque échec (jamais le corps d'un fournisseur), **404 sans le bon secret** ; mise en cache 60 s.
+Le secret passe en paramètre d'URL parce qu'une sonde gratuite (UptimeRobot) n'envoie pas
+d'en-tête.
+
+**3. Une sonde toutes les 5 minutes** sur cette route, qui alerte au premier 503.
+
+**Les modèles et leurs réglages**
+
+| Rôle | Modèle | Où le changer |
+|---|---|---|
+| Rédaction | `claude-opus-5` | constante `MODELE_CHAT`, `netlify/lib/modele-chat.ts` |
+| Planificateur | `claude-haiku-4-5` | variable `ANTHROPIC_MODEL_PLAN` |
+| Métadonnées | `gemini-3.5-flash-lite` | variable `GEMINI_META_MODEL` (+ `GEMINI_META_THINKING`) |
+| Embeddings | `gemini-embedding-001` | constante `MODEL`, `netlify/lib/embed.ts` (changer = réindexer) |
+
+Une variable Netlify ne prend effet qu'au **déploiement suivant**. La santé lit les mêmes
+constantes : un modèle retiré ou refusé à la clé la fait passer en 503.
+
+**Test fumée après chaque déploiement**
+
+1. `curl -s -o /dev/null -w "%{http_code}" "https://<site>/api/sante?cle=$SANTE_SECRET"` → `200`
+   (le corps détaille chaque vérification).
+2. Le verrou d'écriture tient : un `POST /api/ingest` sans en-tête `x-corpus-admin` → `401`.
+3. Une vraie question dans l'interface, puis ouverture d'un PDF depuis une source (`/api/pdf?id=`).
+   Payant (~0,08 $ la question) ; ne jamais déposer ni supprimer de document pour tester : un
+   dépôt s'indexe pour de bon.
+
+> **Déploiement de démonstration AI Shift** (corpus-scientifique.netlify.app) : déployé par
+> Netlify à chaque push sur `main` (un commit qui ne contient que de la documentation porte
+> `[skip netlify]`) ; projet Sentry `corpus-scientifique` (org `mojo-dlc`), relayé vers le
+> téléphone ; moniteur UptimeRobot « Santé IA » 804405065 ; le secret de santé est gardé hors
+> dépôt dans `~/.sante-sephi.env` (variable `SANTE_SECRET_CORPUS_SCIENTIFIQUE`), celui
+> d'administration dans `~/.corpus-admin.env`.
 
 ---
 
