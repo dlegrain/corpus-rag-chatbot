@@ -63,11 +63,16 @@ export const claude =
   }
 
 /** Un résultat Supabase (`{ error }`) devient une vérification : code d'erreur seul, pas de message. */
-export function sansErreur(r: { error: { code?: string; status?: number; statusCode?: string | number } | null }) {
+export function sansErreur(r: {
+  error: { code?: string; status?: number; statusCode?: string | number } | null
+  status?: number
+}) {
   const e = r.error
   if (!e) return
-  const code = e.status ?? e.statusCode ?? e.code
-  throw new Echec(code ? `code ${String(code).replace(/[^\w.-]/g, '').slice(0, 20)}` : 'erreur base')
+  // Le statut HTTP de la réponse quand il existe (0 = réseau), sinon le code de l'erreur.
+  const http = r.status || e.status || Number(e.statusCode) || 0
+  if (http) throw new Echec(`HTTP ${http}`)
+  throw new Echec(e.code ? `code ${String(e.code).replace(/[^\w.-]/g, '').slice(0, 20)}` : 'base injoignable')
 }
 
 async function executer(verifs: Record<string, Verif>) {
