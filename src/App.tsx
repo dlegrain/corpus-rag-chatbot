@@ -5,10 +5,12 @@ import TopBar from './components/TopBar'
 import DropOverlay from './components/DropOverlay'
 import { useDocuments } from './hooks/useDocuments'
 import { useChat } from './hooks/useChat'
+import { useAdmin } from './hooks/useAdmin'
 import { PdfDocs } from './lib/pdfDocs'
 
 export default function App() {
   const library = useDocuments()
+  const acces = useAdmin()
   /**
    * Les documents cochés ; vide = tout le corpus. Volontairement pas conservé
    * d'une visite à l'autre : un périmètre oublié qui survit en silence est le
@@ -22,8 +24,9 @@ export default function App() {
   const [drawer, setDrawer] = useState(false)
   const [dragging, setDragging] = useState(false)
 
-  // Glisser-déposer sur toute la fenêtre
+  // Glisser-déposer sur toute la fenêtre — pour l'administrateur seulement.
   useEffect(() => {
+    if (!acces.admin) return
     let depth = 0
     const onEnter = (e: DragEvent) => {
       if (!e.dataTransfer?.types.includes('Files')) return
@@ -52,7 +55,7 @@ export default function App() {
       window.removeEventListener('dragover', onOver)
       window.removeEventListener('drop', onDrop)
     }
-  }, [library.upload])
+  }, [library.upload, acces.admin])
 
   // Un document retiré du corpus entre-temps disparaît de la sélection de lui-même.
   const scopedDocs = library.docs.filter((d) => scope.includes(d.id))
@@ -63,6 +66,7 @@ export default function App() {
     <div className="flex h-full overflow-hidden">
       <Sidebar
         library={library}
+        acces={acces}
         scope={scope}
         onToggle={toggleScope}
         onClear={clearScope}

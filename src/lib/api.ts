@@ -1,9 +1,11 @@
 import { chunkPages } from '../../shared/chunk.js'
 import { buildSample } from '../../shared/sample.js'
 import { extractPages } from './pdf'
+import { entetesAdmin } from './admin'
 import type { Doc, Msg, Source, UploadState } from './types'
 
 const BATCH = 12 // chunks par appel : garde chaque function bien sous le timeout
+const REFUS = 'Accès administrateur requis'
 
 export async function fetchDocuments(): Promise<Doc[]> {
   const res = await fetch('/api/documents')
@@ -12,16 +14,18 @@ export async function fetchDocuments(): Promise<Doc[]> {
 }
 
 export async function deleteDocument(id: string): Promise<void> {
-  const res = await fetch(`/api/documents?id=${id}`, { method: 'DELETE' })
+  const res = await fetch(`/api/documents?id=${id}`, { method: 'DELETE', headers: entetesAdmin() })
+  if (res.status === 401) throw new Error(REFUS)
   if (!res.ok) throw new Error('Suppression impossible')
 }
 
 async function post(body: unknown) {
   const res = await fetch('/api/ingest', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...entetesAdmin() },
     body: JSON.stringify(body),
   })
+  if (res.status === 401) throw new Error(REFUS)
   const json = await res.json()
   if (!res.ok) throw new Error(json.error ?? 'Échec de l’indexation')
   return json

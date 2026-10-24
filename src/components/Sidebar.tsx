@@ -1,11 +1,15 @@
-import { useRef } from 'react'
 import DocumentList from './DocumentList'
 import UploadQueue from './UploadQueue'
 import BrandCard from './BrandCard'
+import AddPdfs from './AddPdfs'
+import AdminAccess from './AdminAccess'
 import type { useDocuments } from '../hooks/useDocuments'
+import type { useAdmin } from '../hooks/useAdmin'
 
 type Props = {
   library: ReturnType<typeof useDocuments>
+  /** Le mode administrateur : seul il ajoute et retire des documents. */
+  acces: ReturnType<typeof useAdmin>
   scope: string[]
   onToggle: (id: string) => void
   onClear: () => void
@@ -13,8 +17,7 @@ type Props = {
   onClose: () => void
 }
 
-export default function Sidebar({ library, scope, onToggle, onClear, open, onClose }: Props) {
-  const input = useRef<HTMLInputElement>(null)
+export default function Sidebar({ library, acces, scope, onToggle, onClear, open, onClose }: Props) {
   const total = library.docs.reduce((s, d) => s + (d.n_chunks || 0), 0)
 
   return (
@@ -46,33 +49,9 @@ export default function Sidebar({ library, scope, onToggle, onClear, open, onClo
           </button>
         </div>
 
-        <div className="px-4">
-          <button
-            onClick={() => input.current?.click()}
-            className="group flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-line bg-surface-2 px-3 py-3 text-note font-[650] text-ink-soft transition hover:border-accent hover:bg-accent-soft hover:text-accent"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Ajouter des PDF
-          </button>
-          <p className="mt-2 text-center text-meta text-muted">
-            ou glissez-les n’importe où sur la page
-          </p>
-          <input
-            ref={input}
-            type="file"
-            accept="application/pdf"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              library.upload(Array.from(e.target.files ?? []))
-              e.target.value = ''
-            }}
-          />
-        </div>
+        {acces.admin && <AddPdfs onFiles={library.upload} />}
 
-        <div className="mt-3 min-h-0 flex-1 overflow-y-auto border-t border-line">
+        <div className={`min-h-0 flex-1 overflow-y-auto border-t border-line ${acces.admin ? 'mt-3' : ''}`}>
           <UploadQueue uploads={library.uploads} />
           <DocumentList
             docs={library.docs}
@@ -80,8 +59,9 @@ export default function Sidebar({ library, scope, onToggle, onClear, open, onClo
             scope={scope}
             onToggle={onToggle}
             onClear={onClear}
-            onRemove={library.remove}
+            onRemove={acces.admin ? library.remove : undefined}
           />
+          <AdminAccess acces={acces} />
           <BrandCard />
         </div>
       </aside>

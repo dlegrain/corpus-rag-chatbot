@@ -63,6 +63,7 @@ Object.assign(process.env, {
   ANTHROPIC_API_KEY: 'fausse-cle',
   ANTHROPIC_BASE_URL: `http://127.0.0.1:${portAmont}/anthropic`,
   GEMINI_API_KEY: 'fausse-cle',
+  CORPUS_ADMIN_SECRET: 'secret-essai',
 })
 
 // Gemini est appelé par son adresse publique : intercepté, il répond comme à une clé morte.
@@ -102,7 +103,8 @@ async function essai(nom: string, appel: () => Promise<Response>, attendu: { rou
 const chat = (await import('../netlify/functions/chat.mjs')).default
 const ingest = (await import('../netlify/functions/ingest.mjs')).default
 const documents = (await import('../netlify/functions/documents.mjs')).default
-const json = (url: string, body: unknown) => new Request(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+const json = (url: string, body: unknown) =>
+  new Request(url, { method: 'POST', headers: { 'content-type': 'application/json', 'x-corpus-admin': 'secret-essai' }, body: JSON.stringify(body) })
 
 // 1. Flux SSE : la recherche (Gemini, clé morte) échoue DANS le flux, après la réponse rendue.
 const flux = await essai(

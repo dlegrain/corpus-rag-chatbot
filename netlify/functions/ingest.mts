@@ -3,11 +3,15 @@ import { db, T, json } from '../lib/supabase.js'
 import { embedBatch } from '../lib/embed.js'
 import { extractMeta } from '../lib/metadata.js'
 import { avecSentry, noter } from '../lib/sentry.js'
+import { exigerAdmin } from '../lib/admin.js'
 
 type Chunk = { content: string; page: number; chunk_index: number }
 
 export default avecSentry('ingest', async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
+  // Ajouter au corpus est réservé à l'administrateur — avant tout appel payant (Gemini).
+  const refus = exigerAdmin(req)
+  if (refus) return refus
 
   let body: any
   try {

@@ -8,7 +8,8 @@ type Props = {
   scope: string[]
   onToggle: (id: string) => void
   onClear: () => void
-  onRemove: (id: string) => void
+  /** Absent pour le visiteur : seul l'administrateur retire un document. */
+  onRemove?: (id: string) => void
 }
 
 /** La case à cocher, dessinée pour rester lisible sur la carte colorée. */
@@ -54,7 +55,7 @@ export default function DocumentList({ docs, loading, scope, onToggle, onClear, 
       {loading && <div className="px-2 py-3 text-meta text-muted">Chargement…</div>}
       {!loading && docs.length === 0 && (
         <div className="rounded-lg border border-line bg-surface-2 px-3 py-4 text-meta leading-normal text-ink-soft">
-          Aucun {DOMAINE.unite} indexé. Déposez des PDF pour construire le corpus.
+          Aucun {DOMAINE.unite} indexé{onRemove ? '. Déposez des PDF pour construire le corpus.' : ' pour l’instant.'}
         </div>
       )}
 
@@ -112,17 +113,19 @@ export default function DocumentList({ docs, loading, scope, onToggle, onClear, 
                   </span>
                 </button>
 
-                <button
-                  onClick={() => {
-                    if (confirm(`Retirer « ${doc.title} » du corpus ?`)) onRemove(doc.id)
-                  }}
-                  className="absolute top-2 right-2 rounded-sm p-1 text-muted opacity-0 transition group-hover:opacity-100 hover:bg-rouge-soft hover:text-rouge focus:opacity-100"
-                  aria-label="Retirer du corpus"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-                  </svg>
-                </button>
+                {onRemove && (
+                  <button
+                    onClick={() => {
+                      if (confirm(`Retirer « ${doc.title} » du corpus ?`)) onRemove(doc.id)
+                    }}
+                    className="absolute top-2 right-2 rounded-sm p-1 text-muted opacity-0 transition group-hover:opacity-100 hover:bg-rouge-soft hover:text-rouge focus:opacity-100"
+                    aria-label="Retirer du corpus"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </li>
           )

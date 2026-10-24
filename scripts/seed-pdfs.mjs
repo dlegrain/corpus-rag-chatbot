@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Indexe les PDF du dossier ./pdfs via l'API du site (même chemin de code que le drag & drop).
 //   node scripts/seed-pdfs.mjs [--url https://mon-site.netlify.app] [--dir pdfs] [--batch 12]
+// L'ajout est réservé à l'administrateur : CORPUS_ADMIN_SECRET doit être dans l'environnement,
+//   node --env-file=$HOME/.corpus-admin.env scripts/seed-pdfs.mjs --url https://mon-site.netlify.app
 import { readdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'
@@ -13,6 +15,11 @@ const args = Object.fromEntries(
 const BASE = (args.url ?? 'http://localhost:8888').replace(/\/$/, '')
 const DIR = resolve(args.dir ?? 'pdfs')
 const BATCH = Number(args.batch ?? 12) // --batch 6 si les lots expirent (délai de 30 s en local)
+const SECRET = process.env.CORPUS_ADMIN_SECRET
+if (!SECRET) {
+  console.error('CORPUS_ADMIN_SECRET absent : l\'API refuse tout ajout sans lui (voir README, « Constituer son corpus »).')
+  process.exit(1)
+}
 
 async function extractPages(path) {
   const data = new Uint8Array(await readFile(path))
@@ -41,9 +48,10 @@ async function extractPages(path) {
 async function post(body) {
   const res = await fetch(`${BASE}/api/ingest`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-corpus-admin': SECRET },
     body: JSON.stringify(body),
   })
+  if (res.status === 401) throw new Error('secret administrateur refusé (CORPUS_ADMIN_SECRET)')
   const text = await res.text()
   let json
   try {

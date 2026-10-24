@@ -1,6 +1,9 @@
 import type { Config } from '@netlify/functions'
 import { db, T, json } from '../lib/supabase.js'
 import { avecSentry, noter } from '../lib/sentry.js'
+import { exigerAdmin } from '../lib/admin.js'
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export default avecSentry('documents', async (req: Request) => {
   const url = new URL(req.url)
@@ -23,13 +26,17 @@ export default avecSentry('documents', async (req: Request) => {
   }
 
   if (req.method === 'DELETE') {
-    const id = url.searchParams.get('id')
-    if (!id) return json({ error: 'id_required' }, 400)
-    const { error } = await db().from(T.documents).delete().eq('id', id)
+    // Retirer un document est réservé à l'administrateur ; lire la liste reste ouvert.
+    const refus = exigerAdmin(req)
+    if (refus) return refus
+    const id = url.searchParams.get('id') ?? ''
+    if (!UUID.test(id)) return json({ error: 'id_required' }, 400)
+    const { data, error } = await db().from(T.documents).delete().eq('id', id).select('id')
     if (error) {
       noter(error, { route: 'documents', etape: 'retrait', fournisseur: 'supabase', statut: error.code, req })
       return json({ error: error.message }, 500)
     }
+    if (!data || data.length === 0) return json({ error: 'not_found' }, 404)
     return json({ deleted: id })
   }
 

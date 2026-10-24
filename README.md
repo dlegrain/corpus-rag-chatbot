@@ -180,18 +180,32 @@ npx netlify dev        # front + functions sur http://localhost:8888
 
 ### 5. Constituer son corpus
 
+Ajouter ou retirer un document est réservé à l'administrateur : le serveur exige le secret
+`CORPUS_ADMIN_SECRET` (en-tête `x-corpus-admin`, comparé à durée constante) sur `/api/ingest` et
+sur le `DELETE` de `/api/documents`. Sans lui : 401, et la base n'est pas touchée. Poser des
+questions, lire la liste et ouvrir les PDF restent ouverts à tous. Variable absente sur le site :
+personne n'écrit.
+
+```bash
+openssl rand -hex 24   # le secret, à poser sur le site (Netlify) et dans .env pour netlify dev
+```
+
 Deux voies, strictement équivalentes (elles passent par la même API) :
 
-- **Glisser-déposer** vos PDF sur la page ;
-- **En masse**, pour un dossier entier :
+- **Glisser-déposer** vos PDF sur la page, après un clic sur « Accès administrateur » (bas de la
+  barre latérale) et la saisie du secret, gardé ensuite dans ce navigateur. Le visiteur ne voit
+  ni le bouton d'ajout ni les corbeilles ;
+- **En masse**, pour un dossier entier (le script lit le secret dans l'environnement) :
 
 ```bash
 mkdir pdfs && cp /chemin/vers/vos/*.pdf pdfs/
-npm run seed -- --url http://localhost:8888
+CORPUS_ADMIN_SECRET=… npm run seed -- --url http://localhost:8888
 
-# ou directement contre la production :
-npm run seed -- --url https://votre-site.netlify.app
+# ou directement contre la production, le secret dans un fichier :
+node --env-file=$HOME/.corpus-admin.env scripts/seed-pdfs.mjs --url https://votre-site.netlify.app
 ```
+
+Test hors ligne du verrou (fausse base, aucune écriture réelle) : `npm run test:admin`.
 
 > Le dossier `pdfs/` est volontairement **exclu du dépôt** (`.gitignore`) : les articles du corpus
 > de démonstration sont soumis aux droits de leurs éditeurs. Mettez-y les vôtres.
@@ -590,9 +604,12 @@ Deux mesures qui ont orienté le travail plus que n'importe quelle intuition :
 | Route | Méthode | Corps / paramètres | Retour |
 |---|---|---|---|
 | `/api/chat` | `POST` | `{ messages: [{role, content}], docIds?: string[] }` | Flux SSE (`sources`, `delta`, `done`, `error`) |
-| `/api/ingest` | `POST` | `{ op: "start" \| "chunks" \| "finish", docId, … }` | JSON |
+| `/api/ingest` | `POST` | `{ op: "start" \| "chunks" \| "finish", docId, … }` — **admin** | JSON |
 | `/api/documents` | `GET` | — | `{ documents: [...] }` |
-| `/api/documents` | `DELETE` | `?id=<uuid>` | `{ deleted: id }` |
+| `/api/documents` | `DELETE` | `?id=<uuid>` — **admin** | `{ deleted: id }`, 404 si inconnu |
+| `/api/admin` | `GET` | — **admin** (vérifie le secret, n'écrit rien) | `{ admin: true }` |
+
+**admin** : en-tête `x-corpus-admin: <CORPUS_ADMIN_SECRET>`, sinon 401.
 
 Les routes sont déclarées dans chaque function via `export const config = { path: '/api/…' }`.
 
@@ -607,8 +624,8 @@ Les routes sont déclarées dans chaque function via `export const config = { pa
 │   ├── hooks/                  useDocuments (corpus + upload), useChat (SSE + mémoire)
 │   └── lib/                    pdf.ts (extraction), api.ts, types.ts, citations.ts
 ├── netlify/
-│   ├── functions/              chat.mts · ingest.mts · documents.mts · pdf.mts  → routes /api/*
-│   └── lib/                    embed · supabase · metadata · history · catalog
+│   ├── functions/              chat · ingest · documents · pdf · admin · sante  → routes /api/*
+│   └── lib/                    embed · supabase · metadata · history · catalog · admin (verrou)
 │                               plan (planificateur) · retrieve (recherche) · prompt
 ├── shared/                     (navigateur + functions + scripts)
 │   ├── domaine.js              ★ LE SUJET DU CHATBOT — le seul fichier à changer
@@ -871,8 +888,9 @@ pas un changement de code.
 
 ## Limites connues
 
-- **Aucune authentification.** Le déploiement de démonstration est public : n'importe quel visiteur
-  peut ajouter ou supprimer des documents. Voir le profil « corpus interne » ci-dessus.
+- **Une seule clé d'écriture, pas de comptes.** Le déploiement de démonstration est public en
+  lecture ; ajouter ou retirer un document exige le secret `CORPUS_ADMIN_SECRET`. Pas de comptes
+  ni de cloisonnement par utilisateur : voir le profil « corpus interne » ci-dessus.
 - **PDF scannés non gérés.** Sans couche texte, l'extraction renvoie du vide et l'ingestion
   échoue proprement (« Aucun texte extractible »). Il faudrait un OCR en amont.
 - **Graphiques perdus, tableaux fragiles — la limite la plus sérieuse.** `getTextContent()` de
