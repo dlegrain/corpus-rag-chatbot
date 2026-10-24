@@ -1,5 +1,6 @@
 import { DOMAINE } from '../../shared/domaine.js'
 import { parseFilename } from '../../shared/meta.js'
+import { signaler } from './sentry.js'
 
 export type DocMeta = {
   title: string
@@ -29,9 +30,23 @@ const SCHEMA = {
   required: ['title', 'authors', 'year', 'journal'],
 }
 
-/** Échec visible dans les journaux de la fonction, sans bloquer l'import. */
-function logFailure(filename: string, reason: string) {
+/**
+ * Échec visible dans les journaux de la fonction ET dans Sentry, sans bloquer l'import.
+ * Sentry ne reçoit que le motif (statut, raison de fin) : ni le nom du fichier, ni un
+ * extrait du texte. Une clé morte ou un modèle retiré y devient une issue, au lieu d'un
+ * catalogue qui se remplit en silence de titres tirés des noms de fichiers.
+ */
+async function logFailure(filename: string, reason: string, sentry: { motif?: string; statut?: number; grave?: boolean } = {}) {
   console.error(`[metadata] extraction Gemini (${MODEL}) échouée pour « ${filename} » : ${reason} — repli sur le nom de fichier`)
+  await signaler(new Error(`extraction des métadonnées échouée : ${sentry.motif ?? reason}`), {
+    route: 'ingest',
+    etape: 'metadonnees',
+    fournisseur: 'gemini',
+    modele: MODEL,
+    statut: sentry.statut,
+    // Clé, modèle, quota, réseau : grave. Une réponse vide ou mal formée : à surveiller.
+    niveau: sentry.grave ? 'error' : 'warning',
+  })
 }
 
 /**
@@ -82,7 +97,11 @@ export async function extractMeta(filename: string, sample: string): Promise<Doc
       try {
         message = JSON.parse(body)?.error?.message ?? message
       } catch {}
-      logFailure(filename, `HTTP ${res.status} — ${message}`)
+      await logFailure(filename, `HTTP ${res.status} — ${message}`, {
+        motif: `HTTP ${res.status} — ${message.slice(0, 200)}`,
+        statut: res.status,
+        grave: true,
+      })
       return fallback
     }
     const json = await res.json()
@@ -90,14 +109,14 @@ export async function extractMeta(filename: string, sample: string): Promise<Doc
     const raw = candidate?.content?.parts?.find((p: { text?: string; thought?: boolean }) => p.text && !p.thought)?.text
     if (!raw) {
       const why = candidate?.finishReason ?? json?.promptFeedback?.blockReason ?? 'aucun candidat'
-      logFailure(filename, `réponse sans texte (${why})`)
+      await logFailure(filename, `réponse sans texte (${why})`)
       return fallback
     }
     let m
     try {
       m = JSON.parse(raw)
     } catch {
-      logFailure(filename, `JSON illisible (${candidate?.finishReason}) : ${raw.slice(0, 200)}`)
+      await logFailure(filename, `JSON illisible (${candidate?.finishReason}) : ${raw.slice(0, 200)}`, { motif: `JSON illisible (${candidate?.finishReason})` })
       return fallback
     }
     return {
@@ -107,7 +126,7 @@ export async function extractMeta(filename: string, sample: string): Promise<Doc
       journal: (m.journal || '').trim() || fallback.journal,
     }
   } catch (err) {
-    logFailure(filename, `appel impossible — ${err instanceof Error ? err.message : String(err)}`)
+    await logFailure(filename, `appel impossible — ${err instanceof Error ? err.message : String(err)}`, { grave: true })
     return fallback
   }
 }

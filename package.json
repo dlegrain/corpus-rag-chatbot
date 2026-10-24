@@ -23,10 +23,12 @@
     "vite": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "seed": "node scripts/seed-pdfs.mjs"
+    "seed": "node scripts/seed-pdfs.mjs",
+    "test:sentry": "npx --yes tsx scripts/test-sentry.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",
+    "@sentry/node": "^10.76.2",
     "@supabase/supabase-js": "^2.112.4",
     "pdfjs-dist": "^6.2.108",
     "react": "^19.2.8",

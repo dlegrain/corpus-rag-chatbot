@@ -7,6 +7,7 @@ import { planSearch } from '../lib/plan.js'
 import { search, recall, number, without } from '../lib/retrieve.js'
 import { buildSystemPrompt, excerptOf, type Numbered } from '../lib/prompt.js'
 import { MODELE_CHAT } from '../lib/modele-chat.js'
+import { avecSentry, noter, signaler, vider } from '../lib/sentry.js'
 
 type Body = {
   messages: Turn[]
@@ -20,7 +21,7 @@ type Body = {
   known?: Record<string, number>
 }
 
-export default async (req: Request) => {
+export default avecSentry('chat', async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
 
   const body = (await req.json()) as Body
@@ -62,6 +63,7 @@ export default async (req: Request) => {
     carried = all.slice(found.passages.length)
   } catch (err: any) {
     console.error('[chat] retrieval', err?.message)
+    await signaler(err, { route: 'chat', etape: 'recherche', req })
     return json({ error: 'retrieval_failed' }, 500)
   }
 
@@ -108,8 +110,11 @@ export default async (req: Request) => {
         send({ type: 'done' })
       } catch (err: any) {
         console.error('[chat] claude', err?.message)
+        noter(err, { route: 'chat', etape: 'redaction', fournisseur: 'anthropic', modele: MODELE_CHAT, req })
         send({ type: 'error', message: err?.message ?? 'stream_failed' })
       } finally {
+        // Le flux ouvert garde la function en vie : on envoie à Sentry AVANT de le fermer.
+        await vider()
         controller.close()
       }
     },
@@ -122,6 +127,6 @@ export default async (req: Request) => {
       Connection: 'keep-alive',
     },
   })
-}
+})
 
 export const config: Config = { path: '/api/chat' }

@@ -2,10 +2,11 @@ import type { Config } from '@netlify/functions'
 import { db, T, json } from '../lib/supabase.js'
 import { embedBatch } from '../lib/embed.js'
 import { extractMeta } from '../lib/metadata.js'
+import { avecSentry, noter } from '../lib/sentry.js'
 
 type Chunk = { content: string; page: number; chunk_index: number }
 
-export default async (req: Request) => {
+export default avecSentry('ingest', async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
 
   let body: any
@@ -25,9 +26,10 @@ export default async (req: Request) => {
     return json({ error: 'unknown_op' }, 400)
   } catch (err: any) {
     console.error('[ingest]', op, err?.message)
+    noter(err, { route: 'ingest', etape: String(op), req })
     return json({ error: err?.message ?? 'ingest_failed' }, 500)
   }
-}
+})
 
 async function start(docId: string, body: any) {
   const filename: string = body.filename ?? 'document.pdf'

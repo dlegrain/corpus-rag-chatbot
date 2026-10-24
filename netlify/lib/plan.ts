@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { DOMAINE } from '../../shared/domaine.js'
 import { catalogWithIds, type CatalogEntry } from './catalog.js'
 import type { Turn } from './history.js'
+import { noter } from './sentry.js'
 
 export type SearchQuery = { q: string; doc: string | null }
 
@@ -101,6 +102,7 @@ export async function planSearch(
     return retenues.length === 0 && (parsed.queries ?? []).length > 0 ? fallback : retenues
   } catch (err: any) {
     console.error('[plan] repli sur la question brute —', err?.message)
+    noter(err, { route: 'chat', etape: 'plan', fournisseur: 'anthropic', modele: MODEL })
     return fallback
   }
 }
