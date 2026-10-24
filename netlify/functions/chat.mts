@@ -6,6 +6,7 @@ import { fetchCatalog, catalogForPrompt } from '../lib/catalog.js'
 import { planSearch } from '../lib/plan.js'
 import { search, recall, number, without } from '../lib/retrieve.js'
 import { buildSystemPrompt, excerptOf, type Numbered } from '../lib/prompt.js'
+import { MODELE_CHAT } from '../lib/modele-chat.js'
 
 type Body = {
   messages: Turn[]
@@ -93,7 +94,7 @@ export default async (req: Request) => {
 
       try {
         const claude = anthropic.messages.stream({
-          model: 'claude-opus-5',
+          model: MODELE_CHAT,
           max_tokens: 4096,
           output_config: { effort: 'low' },
           system: buildSystemPrompt({ fresh, carried, catalog, restreint, hasDocs }),

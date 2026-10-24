@@ -12,7 +12,7 @@ export type DocMeta = {
 // défaut. (gemini-2.5-flash-lite n'est plus servi aux clés récentes : 404.) Réglable sans toucher
 // au code via GEMINI_META_MODEL (effet au déploiement suivant) ; GEMINI_META_THINKING si le modèle
 // choisi n'accepte pas « minimal » (ex. gemini-3.8-flash : low / medium / high).
-const MODEL = process.env.GEMINI_META_MODEL || 'gemini-3.5-flash-lite'
+export const MODEL = process.env.GEMINI_META_MODEL || 'gemini-3.5-flash-lite'
 const THINKING = process.env.GEMINI_META_THINKING || 'minimal'
 // Les jetons de réflexion sont décomptés de maxOutputTokens : une limite trop basse renvoie un
 // candidat sans texte. Le JSON attendu fait ~100 jetons ; 2048 laisse toute la marge.

@@ -5,7 +5,7 @@ import type { Turn } from './history.js'
 
 export type SearchQuery = { q: string; doc: string | null }
 
-const MODEL = process.env.ANTHROPIC_MODEL_PLAN ?? 'claude-haiku-4-5'
+export const MODEL = process.env.ANTHROPIC_MODEL_PLAN ?? 'claude-haiku-4-5'
 const MAX_QUERIES = 3
 /** Les réponses passées servent de contexte, pas de matière : on les tronque. */
 const ECHO = 600

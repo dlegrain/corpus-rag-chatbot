@@ -1,4 +1,4 @@
-const MODEL = 'gemini-embedding-001'
+export const MODEL = 'gemini-embedding-001'
 const DIMS = 768
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}`
 
